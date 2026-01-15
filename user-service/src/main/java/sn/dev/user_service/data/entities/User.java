@@ -24,4 +24,10 @@ public class User {
 
     @Property("email")
     private String email;
+
+    @Property("firstname")
+    private String firstname;
+
+    @Property("lastname")
+    private String lastname;
 }
