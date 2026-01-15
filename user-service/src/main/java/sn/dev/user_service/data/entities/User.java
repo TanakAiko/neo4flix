@@ -1,4 +1,4 @@
-package sn.dev.user_service.data;
+package sn.dev.user_service.data.entities;
 
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;

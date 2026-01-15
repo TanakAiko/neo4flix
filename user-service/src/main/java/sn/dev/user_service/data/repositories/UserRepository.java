@@ -1,11 +1,11 @@
-package sn.dev.user_service.services;
+package sn.dev.user_service.data.repositories;
 
 import java.util.Optional;
 
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.stereotype.Repository;
 
-import sn.dev.user_service.data.User;
+import sn.dev.user_service.data.entities.User;
 
 @Repository
 public interface UserRepository extends Neo4jRepository<User, String> {
