@@ -41,6 +41,8 @@ public class UserServiceImpl implements UserService {
         UserRepresentation kcUser = new UserRepresentation();
         kcUser.setUsername(dto.username());
         kcUser.setEmail(dto.email());
+        kcUser.setFirstName(dto.firstname());
+        kcUser.setLastName(dto.lastname());
         kcUser.setEnabled(true);
 
         // 2. Add the Password
