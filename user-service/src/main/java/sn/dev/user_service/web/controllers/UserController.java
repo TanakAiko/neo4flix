@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import jakarta.validation.Valid;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
@@ -14,8 +15,8 @@ import sn.dev.user_service.web.dto.TokenResponseDTO;
 public interface UserController {
 
     @PostMapping("/register")
-    ResponseEntity<String> register(@RequestBody RegistrationDTO registrationDto);
+    ResponseEntity<String> register(@Valid @RequestBody RegistrationDTO registrationDto);
 
     @PostMapping("/login")
-    ResponseEntity<TokenResponseDTO> login(@RequestBody LoginDTO loginDto);
+    ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginDTO loginDto);
 }
