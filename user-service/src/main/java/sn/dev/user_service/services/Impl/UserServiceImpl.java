@@ -1,33 +1,101 @@
 package sn.dev.user_service.services.Impl;
 
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Service;
+import java.util.List;
 
+import org.keycloak.admin.client.CreatedResponseUtil;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import jakarta.ws.rs.core.Response;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 import sn.dev.user_service.data.entities.User;
 import sn.dev.user_service.data.repositories.UserRepository;
 import sn.dev.user_service.services.UserService;
+import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.RegistrationDTO;
+import sn.dev.user_service.web.dto.TokenResponseDTO;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final Keycloak keycloak;
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    private String issuerUri;
 
     @Override
-    public void syncUser(Jwt jwt) {
-        String keycloakId = jwt.getSubject();
+    @Transactional
+    public void registerUser(RegistrationDTO dto) {
+        // 1. Create the User Object for Keycloak
+        UserRepresentation kcUser = new UserRepresentation();
+        kcUser.setUsername(dto.username());
+        kcUser.setEmail(dto.email());
+        kcUser.setEnabled(true);
 
-        if (!userRepository.existsById(keycloakId)) {
-            User user = User.builder()
-                    .keycloakId(keycloakId)
-                    .username(jwt.getClaimAsString("preferred_username"))
-                    .email(jwt.getClaimAsString("email"))
-                    .firstname(jwt.getClaimAsString("given_name"))
-                    .lastname(jwt.getClaimAsString("family_name"))
-                    .build();
+        // 2. Add the Password
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(dto.password());
+        credential.setTemporary(false);
+        kcUser.setCredentials(List.of(credential));
 
-            userRepository.save(user);
+        // 3. Request Keycloak to create the user in your specific realm
+        Response response = keycloak.realm("neo4flix").users().create(kcUser);
+
+        if (response.getStatus() == 201) {
+            // 4. Get the ID Keycloak generated
+            String keycloakId = CreatedResponseUtil.getCreatedId(response);
+            try {
+                // 5. Save the user into Neo4j
+                User neo4jUser = new User(keycloakId, dto.username(), dto.email(), dto.firstname(), dto.lastname());
+                userRepository.save(neo4jUser);
+            } catch (Exception e) {
+                // If Neo4j fails, delete the user from Keycloak to keep them in sync
+                keycloak.realm("neo4flix").users().get(keycloakId).remove();
+                throw new RuntimeException("Database error: Could not complete registration.");
+            }
+        } else if (response.getStatus() == 409) {
+            throw new RuntimeException("Username or Email is already taken.");
+        } else {
+            // Handle cases like "User already exists" (Status 409)
+            throw new RuntimeException("Registration failed in Keycloak. Status: " + response.getStatus());
         }
+    }
+
+    @Override
+    public TokenResponseDTO login(LoginDTO loginDto) {
+        String tokenUrl = issuerUri + "/protocol/openid-connect/token";
+        try {
+            return callKeycloakTokenEndpoint(loginDto, tokenUrl);
+        } catch (Exception e) {
+            throw new RuntimeException("Login failed: Invalid credentials or server error");
+        }
+    }
+
+    private TokenResponseDTO callKeycloakTokenEndpoint(LoginDTO loginDto, String url) {
+        WebClient webClient = WebClient.create();
+        return webClient.post()
+                .uri(url)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("grant_type", "password")
+                        .with("client_id", "neo4flix-user-service")
+                        .with("username", loginDto.username())
+                        .with("password", loginDto.password()))
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError,
+                        response -> Mono.error(new RuntimeException("Invalid username or password")))
+                .bodyToMono(TokenResponseDTO.class)
+                .block();
     }
 }

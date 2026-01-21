@@ -1,10 +1,11 @@
 package sn.dev.user_service.services;
 
-import org.springframework.security.oauth2.jwt.Jwt;
+import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.RegistrationDTO;
+import sn.dev.user_service.web.dto.TokenResponseDTO;
 
 public interface UserService {
-    /**
-     * Synchronizes the user from Keycloak JWT into the Neo4j database.
-     */
-    void syncUser(Jwt jwt);
+    void registerUser(RegistrationDTO registrationDto);
+
+    TokenResponseDTO login(LoginDTO loginDto);
 }

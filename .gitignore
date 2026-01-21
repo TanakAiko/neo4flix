@@ -1,2 +1,5 @@
 .github
 user-service/docker-compose.yml
+
+### VS Code ###
+.vscode/
