@@ -1,6 +1,7 @@
 package sn.dev.user_service.services;
 
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
@@ -16,4 +17,6 @@ public interface UserService {
     TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDto);
 
     void logout(RefreshTokenDTO refreshTokenDto);
+
+    PublicProfileDTO getPublicProfile(String username);
 }

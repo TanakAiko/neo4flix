@@ -16,9 +16,9 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
     // API endpoint constants
     private static final String API_USERS = "/api/users";
-    private static final String API_USERS_ID = "/api/users/{id}";
     private static final String API_USERS_CUSTOM = "/api/users/custom";
-    private static final String API_USERS_USER_ID_CUSTOM = "/api/users/{userID}/custom";
+    private static final String API_USERS_USERNAME = "/api/users/{username}";
+    private static final String API_USERS_USER_USERNAME_CUSTOM = "/api/users/{username}/custom";
     private static final String API_PRODUCTS = "/api/products";
 
     @Bean
@@ -30,9 +30,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.GET,
                                 API_USERS,
-                                API_USERS_ID,
+                                API_USERS_USERNAME,
                                 API_USERS_CUSTOM,
-                                API_USERS_USER_ID_CUSTOM)
+                                API_USERS_USER_USERNAME_CUSTOM)
                         .authenticated()
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -40,15 +40,15 @@ public class SecurityConfig {
                         .authenticated()
                         .requestMatchers(
                                 HttpMethod.PUT,
-                                API_USERS_ID)
+                                API_USERS_USERNAME)
                         .authenticated()
                         .requestMatchers(
                                 HttpMethod.PATCH,
-                                API_USERS_ID)
+                                API_USERS_USERNAME)
                         .authenticated()
                         .requestMatchers(
                                 HttpMethod.DELETE,
-                                API_USERS_ID)
+                                API_USERS_USERNAME)
                         .authenticated()
                         .anyRequest().permitAll() // All endpoints are publicly accessible
                 )

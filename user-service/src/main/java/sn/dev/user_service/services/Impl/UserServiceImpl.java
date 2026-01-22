@@ -23,6 +23,7 @@ import sn.dev.user_service.data.entities.User;
 import sn.dev.user_service.data.repositories.UserRepository;
 import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
@@ -171,5 +172,15 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new RuntimeException("Logout failed: " + e.getMessage());
         }
+    }
+
+    @Override
+    public PublicProfileDTO getPublicProfile(String username) {
+        return userRepository.findByUsername(username)
+                .map(user -> new PublicProfileDTO(
+                        user.getUsername(),
+                        user.getFirstname(),
+                        user.getLastname()))
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
     }
 }

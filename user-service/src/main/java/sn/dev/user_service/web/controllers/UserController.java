@@ -2,12 +2,14 @@ package sn.dev.user_service.web.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import jakarta.validation.Valid;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
@@ -30,4 +32,7 @@ public interface UserController {
 
     @PostMapping("/logout")
     ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenDTO refreshTokenDto);
+
+    @GetMapping("/{username}")
+    ResponseEntity<PublicProfileDTO> getPublicProfile(@PathVariable String username);
 }

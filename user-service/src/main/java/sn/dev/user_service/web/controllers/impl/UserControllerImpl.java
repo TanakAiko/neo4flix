@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.controllers.UserController;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
@@ -47,5 +48,11 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<Void> logout(@Valid RefreshTokenDTO refreshTokenDTO) {
         userService.logout(refreshTokenDTO);
         return ResponseEntity.noContent().build(); // 204 No Content is standard for logout
+    }
+
+    @Override
+    public ResponseEntity<PublicProfileDTO> getPublicProfile(String username) {
+        PublicProfileDTO publicProfile = userService.getPublicProfile(username);
+        return ResponseEntity.ok(publicProfile);
     }
 }
