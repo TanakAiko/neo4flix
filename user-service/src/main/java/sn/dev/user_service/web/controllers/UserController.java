@@ -21,10 +21,13 @@ public interface UserController {
 
     @PostMapping("/login")
     ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginDTO loginDto);
-    
+
     @PostMapping("/refresh")
-    ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshTokenDTO refreshToken);
+    ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshTokenDTO refreshTokenDto);
 
     @GetMapping("/me")
     ResponseEntity<UserProfileDTO> getProfile();
+
+    @PostMapping("/logout")
+    ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenDTO refreshTokenDto);
 }

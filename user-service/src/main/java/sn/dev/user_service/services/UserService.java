@@ -14,4 +14,6 @@ public interface UserService {
     UserProfileDTO getAuthenticatedUser();
 
     TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDto);
+
+    void logout(RefreshTokenDTO refreshTokenDto);
 }

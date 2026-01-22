@@ -152,4 +152,24 @@ public class UserServiceImpl implements UserService {
 
         throw new RuntimeException("Unauthenticated request");
     }
+
+    @Override
+    public void logout(RefreshTokenDTO refreshTokenDto) {
+        String logoutUrl = issuerUri + "/protocol/openid-connect/logout";
+        WebClient webClient = WebClient.create();
+
+        try {
+            webClient.post()
+                    .uri(logoutUrl)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData("client_id", "neo4flix-user-service")
+                            .with("client_secret", clientSecret)
+                            .with("refresh_token", refreshTokenDto.refreshToken()))
+                    .retrieve()
+                    .toBodilessEntity() // We don't need a response body, just the status
+                    .block();
+        } catch (Exception e) {
+            throw new RuntimeException("Logout failed: " + e.getMessage());
+        }
+    }
 }

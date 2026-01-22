@@ -32,8 +32,8 @@ public class UserControllerImpl implements UserController {
     }
 
     @Override
-    public ResponseEntity<TokenResponseDTO> refresh(@Valid RefreshTokenDTO refreshToken) {
-        TokenResponseDTO tokens = userService.refreshToken(refreshToken);
+    public ResponseEntity<TokenResponseDTO> refresh(@Valid RefreshTokenDTO refreshTokenDto) {
+        TokenResponseDTO tokens = userService.refreshToken(refreshTokenDto);
         return ResponseEntity.ok(tokens);
     }
 
@@ -41,5 +41,11 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<UserProfileDTO> getProfile() {
         UserProfileDTO profile = userService.getAuthenticatedUser();
         return ResponseEntity.ok(profile);
+    }
+
+    @Override
+    public ResponseEntity<Void> logout(@Valid RefreshTokenDTO refreshTokenDTO) {
+        userService.logout(refreshTokenDTO);
+        return ResponseEntity.noContent().build(); // 204 No Content is standard for logout
     }
 }
