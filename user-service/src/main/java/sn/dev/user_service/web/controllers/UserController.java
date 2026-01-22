@@ -1,11 +1,14 @@
 package sn.dev.user_service.web.controllers;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.validation.Valid;
 import sn.dev.user_service.web.dto.LoginDTO;
@@ -35,4 +38,7 @@ public interface UserController {
 
     @GetMapping("/{username}")
     ResponseEntity<PublicProfileDTO> getPublicProfile(@PathVariable String username);
+
+    @GetMapping("/search")
+    ResponseEntity<List<PublicProfileDTO>> search(@RequestParam("q") String query);
 }

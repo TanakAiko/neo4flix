@@ -183,4 +183,18 @@ public class UserServiceImpl implements UserService {
                         user.getLastname()))
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
     }
+
+    @Override
+    public List<PublicProfileDTO> searchUsers(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of(); // Return empty list if search is empty
+        }
+
+        return userRepository.searchUsers(query).stream()
+                .map(user -> new PublicProfileDTO(
+                        user.getUsername(),
+                        user.getFirstname(),
+                        user.getLastname()))
+                .toList();
+    }
 }

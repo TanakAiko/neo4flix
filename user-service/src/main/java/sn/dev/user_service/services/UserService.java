@@ -1,5 +1,7 @@
 package sn.dev.user_service.services;
 
+import java.util.List;
+
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
@@ -19,4 +21,6 @@ public interface UserService {
     void logout(RefreshTokenDTO refreshTokenDto);
 
     PublicProfileDTO getPublicProfile(String username);
+
+    List<PublicProfileDTO> searchUsers(String query);
 }

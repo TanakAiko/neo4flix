@@ -1,5 +1,7 @@
 package sn.dev.user_service.web.controllers.impl;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,8 +42,7 @@ public class UserControllerImpl implements UserController {
 
     @Override
     public ResponseEntity<UserProfileDTO> getProfile() {
-        UserProfileDTO profile = userService.getAuthenticatedUser();
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(userService.getAuthenticatedUser());
     }
 
     @Override
@@ -52,7 +53,11 @@ public class UserControllerImpl implements UserController {
 
     @Override
     public ResponseEntity<PublicProfileDTO> getPublicProfile(String username) {
-        PublicProfileDTO publicProfile = userService.getPublicProfile(username);
-        return ResponseEntity.ok(publicProfile);
+        return ResponseEntity.ok(userService.getPublicProfile(username));
+    }
+
+    @Override
+    public ResponseEntity<List<PublicProfileDTO>> search(String query) {
+        return ResponseEntity.ok(userService.searchUsers(query));
     }
 }
