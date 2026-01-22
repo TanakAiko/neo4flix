@@ -72,4 +72,14 @@ public class UserControllerImpl implements UserController {
         userService.unfollow(username);
         return ResponseEntity.noContent().build();
     }
+
+    @Override
+    public ResponseEntity<List<PublicProfileDTO>> getFollowers(String username) {
+        return ResponseEntity.ok(userService.getFollowersList(username));
+    }
+
+    @Override
+    public ResponseEntity<List<PublicProfileDTO>> getFollowing(String username) {
+        return ResponseEntity.ok(userService.getFollowingList(username));
+    }
 }

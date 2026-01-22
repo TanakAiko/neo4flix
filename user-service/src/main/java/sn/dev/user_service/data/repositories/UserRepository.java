@@ -43,4 +43,12 @@ public interface UserRepository extends Neo4jRepository<User, String> {
 
     @Query("MATCH (u:User {username: $username})-[:FOLLOWS]->() RETURN count(*)")
     Long countFollowing(String username);
+
+    // People I follow
+    @Query("MATCH (u:User {username: $username})-[:FOLLOWS]->(following:User) RETURN following")
+    List<User> findFollowing(String username);
+
+    // People who follow me
+    @Query("MATCH (u:User {username: $username})<-[:FOLLOWS]-(follower:User) RETURN follower")
+    List<User> findFollowers(String username);
 }

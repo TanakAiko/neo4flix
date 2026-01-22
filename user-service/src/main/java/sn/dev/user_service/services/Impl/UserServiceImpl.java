@@ -255,4 +255,25 @@ public class UserServiceImpl implements UserService {
         // 4. Delete relationship in Neo4j
         userRepository.unfollowUser(myUsername, targetUsername);
     }
+
+    @Override
+    public List<PublicProfileDTO> getFollowingList(String username) {
+        return userRepository.findFollowing(username).stream()
+                .map(u -> new PublicProfileDTO(
+                        u.getUsername(), u.getFirstname(), u.getLastname(),
+                        userRepository.countFollowers(u.getUsername()),
+                        userRepository.countFollowing(u.getUsername())))
+                .toList();
+    }
+
+    @Override
+    public List<PublicProfileDTO> getFollowersList(String username) {
+        return userRepository.findFollowers(username).stream()
+                .map(u -> new PublicProfileDTO(
+                        u.getUsername(), u.getFirstname(), u.getLastname(),
+                        userRepository.countFollowers(u.getUsername()),
+                        userRepository.countFollowing(u.getUsername())))
+                .toList();
+    }
+
 }

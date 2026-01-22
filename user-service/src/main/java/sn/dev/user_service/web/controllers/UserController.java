@@ -48,4 +48,10 @@ public interface UserController {
 
     @DeleteMapping("/unfollow/{username}")
     ResponseEntity<Void> unfollow(@PathVariable String username);
+
+    @GetMapping("/{username}/following")
+    ResponseEntity<List<PublicProfileDTO>> getFollowing(@PathVariable String username);
+
+    @GetMapping("/{username}/followers")
+    ResponseEntity<List<PublicProfileDTO>> getFollowers(@PathVariable String username);
 }
