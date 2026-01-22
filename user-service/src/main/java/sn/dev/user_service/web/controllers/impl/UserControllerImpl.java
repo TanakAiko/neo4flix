@@ -4,10 +4,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.controllers.UserController;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
@@ -27,6 +29,12 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<TokenResponseDTO> login(LoginDTO loginDto) {
         TokenResponseDTO tokenResponse = userService.login(loginDto);
         return ResponseEntity.ok(tokenResponse);
+    }
+
+    @Override
+    public ResponseEntity<TokenResponseDTO> refresh(@Valid RefreshTokenDTO refreshToken) {
+        TokenResponseDTO tokens = userService.refreshToken(refreshToken);
+        return ResponseEntity.ok(tokens);
     }
 
     @Override

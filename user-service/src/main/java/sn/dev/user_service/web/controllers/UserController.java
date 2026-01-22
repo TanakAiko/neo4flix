@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import jakarta.validation.Valid;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
@@ -20,6 +21,9 @@ public interface UserController {
 
     @PostMapping("/login")
     ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginDTO loginDto);
+    
+    @PostMapping("/refresh")
+    ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshTokenDTO refreshToken);
 
     @GetMapping("/me")
     ResponseEntity<UserProfileDTO> getProfile();

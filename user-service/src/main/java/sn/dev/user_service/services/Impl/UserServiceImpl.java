@@ -23,6 +23,7 @@ import sn.dev.user_service.data.entities.User;
 import sn.dev.user_service.data.repositories.UserRepository;
 import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.dto.LoginDTO;
+import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
@@ -85,11 +86,48 @@ public class UserServiceImpl implements UserService {
     @Override
     public TokenResponseDTO login(LoginDTO loginDto) {
         String tokenUrl = issuerUri + "/protocol/openid-connect/token";
+        WebClient webClient = WebClient.create();
+
         try {
-            return callKeycloakTokenEndpoint(loginDto, tokenUrl);
+            return webClient.post()
+                    .uri(tokenUrl)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData("grant_type", "password")
+                            .with("client_id", "neo4flix-user-service")
+                            .with("client_secret", clientSecret)
+                            .with("username", loginDto.username())
+                            .with("password", loginDto.password()))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError,
+                            response -> Mono.error(new RuntimeException("Invalid username or password")))
+                    .bodyToMono(TokenResponseDTO.class)
+                    .block();
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Login failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public TokenResponseDTO refreshToken(RefreshTokenDTO refreshTokenDto) {
+        String tokenUrl = issuerUri + "/protocol/openid-connect/token";
+        WebClient webClient = WebClient.create();
+
+        try {
+            return webClient.post()
+                    .uri(tokenUrl)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData("grant_type", "refresh_token")
+                            .with("client_id", "neo4flix-user-service")
+                            .with("client_secret", clientSecret)
+                            .with("refresh_token", refreshTokenDto.refreshToken()))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError,
+                            response -> Mono.error(new RuntimeException("Refresh token is invalid or expired")))
+                    .bodyToMono(TokenResponseDTO.class)
+                    .block();
+        } catch (Exception e) {
+            throw new RuntimeException("Could not refresh token: " + e.getMessage());
         }
     }
 
@@ -113,22 +151,5 @@ public class UserServiceImpl implements UserService {
         }
 
         throw new RuntimeException("Unauthenticated request");
-    }
-
-    private TokenResponseDTO callKeycloakTokenEndpoint(LoginDTO loginDto, String url) {
-        WebClient webClient = WebClient.create();
-        return webClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("grant_type", "password")
-                        .with("client_id", "neo4flix-user-service")
-                        .with("client_secret", clientSecret)
-                        .with("username", loginDto.username())
-                        .with("password", loginDto.password()))
-                .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError,
-                        response -> Mono.error(new RuntimeException("Invalid username or password")))
-                .bodyToMono(TokenResponseDTO.class)
-                .block();
     }
 }
