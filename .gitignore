@@ -1,5 +1,6 @@
 .github
 user-service/docker-compose.yml
+CONTEXT.md
 
 ### VS Code ###
 .vscode/
