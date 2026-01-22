@@ -9,6 +9,8 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -23,6 +25,7 @@ import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.UserProfileDTO;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,9 @@ public class UserServiceImpl implements UserService {
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
 
+    @Value("${keycloak.client.secret}")
+    private String clientSecret;
+
     @Override
     @Transactional
     public void registerUser(RegistrationDTO dto) {
@@ -44,6 +50,7 @@ public class UserServiceImpl implements UserService {
         kcUser.setFirstName(dto.firstname());
         kcUser.setLastName(dto.lastname());
         kcUser.setEnabled(true);
+        kcUser.setEmailVerified(false);
 
         // 2. Add the Password
         CredentialRepresentation credential = new CredentialRepresentation();
@@ -81,8 +88,31 @@ public class UserServiceImpl implements UserService {
         try {
             return callKeycloakTokenEndpoint(loginDto, tokenUrl);
         } catch (Exception e) {
-            throw new RuntimeException("Login failed: Invalid credentials or server error");
+            e.printStackTrace();
+            throw new RuntimeException("Login failed: " + e.getMessage());
         }
+    }
+
+    @Override
+    public UserProfileDTO getAuthenticatedUser() {
+        // 1. Extract the JWT from the Spring Security Context
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            // 2. The "subject" (sub) in the JWT is our Keycloak ID
+            String keycloakId = jwt.getSubject();
+
+            // 3. Find the user in Neo4j using that ID
+            return userRepository.findById(keycloakId)
+                    .map(user -> new UserProfileDTO(
+                            user.getUsername(),
+                            user.getEmail(),
+                            user.getFirstname(),
+                            user.getLastname()))
+                    .orElseThrow(() -> new RuntimeException("User profile not found in database"));
+        }
+
+        throw new RuntimeException("Unauthenticated request");
     }
 
     private TokenResponseDTO callKeycloakTokenEndpoint(LoginDTO loginDto, String url) {
@@ -92,6 +122,7 @@ public class UserServiceImpl implements UserService {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("grant_type", "password")
                         .with("client_id", "neo4flix-user-service")
+                        .with("client_secret", clientSecret)
                         .with("username", loginDto.username())
                         .with("password", loginDto.password()))
                 .retrieve()

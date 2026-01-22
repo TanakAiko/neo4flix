@@ -10,6 +10,7 @@ import sn.dev.user_service.web.controllers.UserController;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.UserProfileDTO;
 
 @RestController
 @RequiredArgsConstructor
@@ -26,5 +27,11 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<TokenResponseDTO> login(LoginDTO loginDto) {
         TokenResponseDTO tokenResponse = userService.login(loginDto);
         return ResponseEntity.ok(tokenResponse);
+    }
+
+    @Override
+    public ResponseEntity<UserProfileDTO> getProfile() {
+        UserProfileDTO profile = userService.getAuthenticatedUser();
+        return ResponseEntity.ok(profile);
     }
 }

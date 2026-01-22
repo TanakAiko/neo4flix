@@ -1,7 +1,7 @@
 package sn.dev.user_service.web.controllers;
 
 import org.springframework.http.ResponseEntity;
-
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.UserProfileDTO;
 
 @RequestMapping("/api/users")
 public interface UserController {
@@ -19,4 +20,7 @@ public interface UserController {
 
     @PostMapping("/login")
     ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginDTO loginDto);
+
+    @GetMapping("/me")
+    ResponseEntity<UserProfileDTO> getProfile();
 }
