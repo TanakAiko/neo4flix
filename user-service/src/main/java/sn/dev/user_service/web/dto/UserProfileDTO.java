@@ -7,5 +7,7 @@ public record UserProfileDTO(
         String username,
         String email,
         String firstname,
-        String lastname) {
+        String lastname,
+        Long followersCount,
+        Long followingCount) {
 }

@@ -37,4 +37,10 @@ public interface UserRepository extends Neo4jRepository<User, String> {
     @Query("MATCH (me:User {username: $me})-[r:FOLLOWS]->(target:User {username: $target}) " +
             "DELETE r")
     void unfollowUser(String me, String target);
+
+    @Query("MATCH (u:User {username: $username})<-[:FOLLOWS]-() RETURN count(*)")
+    Long countFollowers(String username);
+
+    @Query("MATCH (u:User {username: $username})-[:FOLLOWS]->() RETURN count(*)")
+    Long countFollowing(String username);
 }

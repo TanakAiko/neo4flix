@@ -143,11 +143,17 @@ public class UserServiceImpl implements UserService {
 
             // 3. Find the user in Neo4j using that ID
             return userRepository.findById(keycloakId)
-                    .map(user -> new UserProfileDTO(
-                            user.getUsername(),
-                            user.getEmail(),
-                            user.getFirstname(),
-                            user.getLastname()))
+                    .map(user -> {
+                        Long followers = userRepository.countFollowers(user.getUsername());
+                        Long following = userRepository.countFollowing(user.getUsername());
+                        return new UserProfileDTO(
+                                user.getUsername(),
+                                user.getEmail(),
+                                user.getFirstname(),
+                                user.getLastname(),
+                                followers,
+                                following);
+                    })
                     .orElseThrow(() -> new RuntimeException("User profile not found in database"));
         }
 
@@ -176,12 +182,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public PublicProfileDTO getPublicProfile(String username) {
-        return userRepository.findByUsername(username)
-                .map(user -> new PublicProfileDTO(
-                        user.getUsername(),
-                        user.getFirstname(),
-                        user.getLastname()))
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        Long followers = userRepository.countFollowers(username);
+        Long following = userRepository.countFollowing(username);
+
+        return new PublicProfileDTO(
+                user.getUsername(),
+                user.getFirstname(),
+                user.getLastname(),
+                followers,
+                following);
     }
 
     @Override
@@ -191,10 +203,16 @@ public class UserServiceImpl implements UserService {
         }
 
         return userRepository.searchUsers(query).stream()
-                .map(user -> new PublicProfileDTO(
-                        user.getUsername(),
-                        user.getFirstname(),
-                        user.getLastname()))
+                .map(user -> {
+                    Long followers = userRepository.countFollowers(user.getUsername());
+                    Long following = userRepository.countFollowing(user.getUsername());
+                    return new PublicProfileDTO(
+                            user.getUsername(),
+                            user.getFirstname(),
+                            user.getLastname(),
+                            followers,
+                            following);
+                })
                 .toList();
     }
 
