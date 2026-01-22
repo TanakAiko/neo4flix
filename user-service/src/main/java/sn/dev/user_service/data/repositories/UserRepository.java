@@ -17,6 +17,9 @@ public interface UserRepository extends Neo4jRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
+    // Spring Data Neo4j handles this automatically if you name it correctly
+    boolean existsByUsername(String username);
+
     // Find users where username, firstname, or lastname contains the query
     // (case-insensitive)
     @Query("MATCH (u:User) " +
@@ -25,4 +28,13 @@ public interface UserRepository extends Neo4jRepository<User, String> {
             "OR toLower(u.lastname) CONTAINS toLower($query) " +
             "RETURN u LIMIT 20")
     List<User> searchUsers(String query);
+
+    @Query("MATCH (me:User {username: $me}), (target:User {username: $target}) " +
+            "MERGE (me)-[r:FOLLOWS]->(target) " +
+            "RETURN r")
+    void followUser(String me, String target);
+
+    @Query("MATCH (me:User {username: $me})-[r:FOLLOWS]->(target:User {username: $target}) " +
+            "DELETE r")
+    void unfollowUser(String me, String target);
 }

@@ -23,4 +23,8 @@ public interface UserService {
     PublicProfileDTO getPublicProfile(String username);
 
     List<PublicProfileDTO> searchUsers(String query);
+
+    void follow(String targetUsername);
+
+    void unfollow(String targetUsername);
 }

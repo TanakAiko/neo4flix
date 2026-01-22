@@ -60,4 +60,16 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<List<PublicProfileDTO>> search(String query) {
         return ResponseEntity.ok(userService.searchUsers(query));
     }
+
+    @Override
+    public ResponseEntity<Void> follow(String username) {
+        userService.follow(username);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> unfollow(String username) {
+        userService.unfollow(username);
+        return ResponseEntity.noContent().build();
+    }
 }

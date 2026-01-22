@@ -197,4 +197,44 @@ public class UserServiceImpl implements UserService {
                         user.getLastname()))
                 .toList();
     }
+
+    @Override
+    @Transactional
+    public void follow(String targetUsername) {
+        // 1. Get current logged-in user's username
+        String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // 2. Prevent self-following
+        if (myUsername.equals(targetUsername)) {
+            throw new RuntimeException("You cannot follow yourself");
+        }
+
+        // 3. Check if target user exists
+        if (!userRepository.existsByUsername(targetUsername)) {
+            throw new RuntimeException("User '" + targetUsername + "' not found");
+        }
+
+        // 4. Create relationship in Neo4j
+        userRepository.followUser(myUsername, targetUsername);
+    }
+
+    @Override
+    @Transactional
+    public void unfollow(String targetUsername) {
+        // 1. Get current logged-in user's username
+        String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // 2. Prevent self-unfollowing
+        if (myUsername.equals(targetUsername)) {
+            throw new RuntimeException("You cannot unfollow yourself");
+        }
+
+        // 3. Check if target user exists
+        if (!userRepository.existsByUsername(targetUsername)) {
+            throw new RuntimeException("User '" + targetUsername + "' not found");
+        }
+
+        // 4. Delete relationship in Neo4j
+        userRepository.unfollowUser(myUsername, targetUsername);
+    }
 }
