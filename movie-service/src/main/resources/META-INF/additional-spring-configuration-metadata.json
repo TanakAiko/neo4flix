@@ -1,0 +1,12 @@
+{"properties": [
+  {
+    "name": "tmdb.api.key",
+    "type": "java.lang.String",
+    "description": "A description for 'tmdb.api.key'"
+  },
+  {
+    "name": "tmdb.read.access.token",
+    "type": "java.lang.String",
+    "description": "A description for 'tmdb.read.access.token'"
+  }
+]}
