@@ -1,5 +1,8 @@
 package sen.dev.movie_service.services.impl;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,12 +40,29 @@ public class Utils {
                 .build();
     }
 
-    private static Integer extractYear(java.util.Date date) {
+    /**
+     * Extracts the year from a java.util.Date.
+     * TMDB-java 2.13.0 uses Date objects for date fields.
+     */
+    private static Integer extractYear(Date date) {
         if (date == null) {
             return null;
         }
         return date.toInstant()
-                .atZone(java.time.ZoneId.systemDefault())
+                .atZone(ZoneId.systemDefault())
                 .getYear();
+    }
+
+    /**
+     * Converts java.util.Date to LocalDate.
+     * TMDB-java 2.13.0 uses Date objects for release_date fields.
+     */
+    public static LocalDate convertToLocalDate(Date date) {
+        if (date == null) {
+            return null;
+        }
+        return date.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
     }
 }

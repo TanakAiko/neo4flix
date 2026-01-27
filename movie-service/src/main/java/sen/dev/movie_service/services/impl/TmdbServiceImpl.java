@@ -1,18 +1,14 @@
 package sen.dev.movie_service.services.impl;
 
 import com.uwetrottmann.tmdb2.Tmdb;
-import com.uwetrottmann.tmdb2.entities.BaseMovie;
 import com.uwetrottmann.tmdb2.entities.Credits;
 import com.uwetrottmann.tmdb2.entities.Genre;
 import com.uwetrottmann.tmdb2.entities.Movie;
 import com.uwetrottmann.tmdb2.entities.MovieResultsPage;
-import com.uwetrottmann.tmdb2.entities.Person;
 import com.uwetrottmann.tmdb2.entities.TrendingResultsPage;
 import com.uwetrottmann.tmdb2.enumerations.MediaType;
 import com.uwetrottmann.tmdb2.enumerations.TimeWindow;
 import com.uwetrottmann.tmdb2.services.MoviesService;
-
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -36,17 +32,13 @@ import java.util.stream.Collectors;
 @Service
 public class TmdbServiceImpl implements TmdbService {
 
-    @Value("${tmdb.api.key}")
-    private String tmdbApiKey;
-
-    @Value("${tmdb.read.access.token}")
-    private String tmdbReadAccessToken;
-
     private final Tmdb tmdb;
     private final GenreRepository genreRepository;
     private final PersonRepository personRepository;
 
-    public TmdbServiceImpl(String tmdbApiKey, GenreRepository genreRepository, PersonRepository personRepository) {
+    public TmdbServiceImpl(@Value("${tmdb.api.key}") String tmdbApiKey,
+                           GenreRepository genreRepository,
+                           PersonRepository personRepository) {
         this.tmdb = new Tmdb(tmdbApiKey);
         this.genreRepository = genreRepository;
         this.personRepository = personRepository;
@@ -60,7 +52,7 @@ public class TmdbServiceImpl implements TmdbService {
                 .execute();
 
         if (!response.isSuccessful() || response.body() == null) {
-            throw new RuntimeException("Failed to fetch popular movies from TMDB");
+            throw new RuntimeException("Failed to fetch trending movies from TMDB");
         }
 
         return Utils.mapToMovieSummaryDTOListTrending(response.body().results);
@@ -107,7 +99,7 @@ public class TmdbServiceImpl implements TmdbService {
                 .tmdbId(tmdbMovie.id)
                 .title(tmdbMovie.title)
                 .overview(tmdbMovie.overview)
-                .releaseDate(tmdbMovie.release_date != null ? java.time.LocalDate.parse(tmdbMovie.release_date) : null)
+                .releaseDate(Utils.convertToLocalDate(tmdbMovie.release_date))
                 .posterPath(tmdbMovie.poster_path)
                 .voteAverage(tmdbMovie.vote_average);
 
@@ -131,7 +123,7 @@ public class TmdbServiceImpl implements TmdbService {
         builder.directors(directors);
 
         // --- Map Cast (Top 5) ---
-        Set<Person> cast = new HashSet<>();
+        Set<PersonEntity> cast = new HashSet<>();
         if (credits.cast != null) {
             cast = credits.cast.stream()
                     .limit(5)
@@ -142,8 +134,6 @@ public class TmdbServiceImpl implements TmdbService {
 
         return builder.build();
     }
-
-    // --- Helper Methods ---
 
     @Transactional
     public GenreEntity findOrCreateGenre(Integer tmdbId, String name) {
@@ -156,10 +146,10 @@ public class TmdbServiceImpl implements TmdbService {
     }
 
     @Transactional
-    public Person findOrCreatePerson(Integer tmdbId, String name, String profilePath) {
+    public PersonEntity findOrCreatePerson(Integer tmdbId, String name, String profilePath) {
         return personRepository.findByTmdbId(tmdbId)
                 .orElseGet(() -> personRepository.save(
-                        Person.builder()
+                        PersonEntity.builder()
                                 .tmdbId(tmdbId)
                                 .name(name)
                                 .profilePath(profilePath)
