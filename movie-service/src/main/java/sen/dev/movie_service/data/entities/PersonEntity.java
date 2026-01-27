@@ -15,7 +15,7 @@ import org.springframework.data.neo4j.core.schema.Property;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Person {
+public class PersonEntity {
 
     @Id
     @GeneratedValue

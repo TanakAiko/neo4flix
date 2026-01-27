@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Genre {
+public class GenreEntity {
 
     @Id
     @GeneratedValue

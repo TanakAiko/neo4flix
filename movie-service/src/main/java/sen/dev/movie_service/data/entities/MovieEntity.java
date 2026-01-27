@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Movie {
+public class MovieEntity {
 
     @Id
     @GeneratedValue
@@ -47,15 +47,15 @@ public class Movie {
 
     // Genre Relationship
     @Relationship(type = "IN_GENRE", direction = Relationship.Direction.OUTGOING)
-    private Set<Genre> genres;
+    private Set<GenreEntity> genres;
 
     // Director Relationship
     // (Person)-[:DIRECTED]->(Movie) means INCOMING from the Movie's perspective
     @Relationship(type = "DIRECTED", direction = Relationship.Direction.INCOMING)
-    private Set<Person> directors;
+    private Set<PersonEntity> directors;
 
     // Cast (Actors) Relationship
     // (Person)-[:ACTED_IN]->(Movie) means INCOMING from the Movie's perspective
     @Relationship(type = "ACTED_IN", direction = Relationship.Direction.INCOMING)
-    private Set<Person> cast;
+    private Set<PersonEntity> cast;
 }

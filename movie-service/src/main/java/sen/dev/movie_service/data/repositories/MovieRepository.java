@@ -4,18 +4,18 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 
-import sen.dev.movie_service.data.entities.Movie;
+import sen.dev.movie_service.data.entities.MovieEntity;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface MovieRepository extends Neo4jRepository<Movie, Long> {
+public interface MovieRepository extends Neo4jRepository<MovieEntity, Long> {
 
     // Find movie by TMDB ID (Crucial for Lazy Loading)
-    Optional<Movie> findByTmdbId(Integer tmdbId);
+    Optional<MovieEntity> findByTmdbId(Integer tmdbId);
 
     // Search for movies by title (fuzzy match)
-    List<Movie> findByTitleContainingIgnoreCase(String title);
+    List<MovieEntity> findByTitleContainingIgnoreCase(String title);
 
     // --- Watchlist Logic (Remembering we use @Query here) ---
 
@@ -29,5 +29,5 @@ public interface MovieRepository extends Neo4jRepository<Movie, Long> {
     void removeFromWatchlist(@Param("userId") String userId, @Param("tmdbId") Integer tmdbId);
 
     @Query("MATCH (u:User {keycloakId: $userId})-[:IN_WATCHLIST]->(m:Movie) RETURN m")
-    List<Movie> findWatchlistByUserId(@Param("userId") String userId);
+    List<MovieEntity> findWatchlistByUserId(@Param("userId") String userId);
 }
