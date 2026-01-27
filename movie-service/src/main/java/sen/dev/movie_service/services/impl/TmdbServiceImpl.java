@@ -63,7 +63,7 @@ public class TmdbServiceImpl implements TmdbService {
             throw new RuntimeException("Failed to fetch popular movies from TMDB");
         }
 
-        return Utils.mapToDTOListTrending(response.body().results);
+        return Utils.mapToMovieSummaryDTOListTrending(response.body().results);
 
     }
 
@@ -78,7 +78,7 @@ public class TmdbServiceImpl implements TmdbService {
             throw new RuntimeException("Failed to fetch popular movies from TMDB");
         }
 
-        return Utils.mapToDTOListPopular(response.body().results);
+        return Utils.mapToMovieSummaryDTOList(response.body().results);
     }
 
     @Override

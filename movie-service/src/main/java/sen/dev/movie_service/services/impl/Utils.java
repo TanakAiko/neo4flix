@@ -10,20 +10,20 @@ import sen.dev.movie_service.web.dto.MovieSummaryDTO;
 
 public class Utils {
 
-    public static List<MovieSummaryDTO> mapToDTOListTrending(List<Trending> movies) {
-        return movies.stream()
+    public static List<MovieSummaryDTO> mapToMovieSummaryDTOListTrending(List<Trending> trendings) {
+        return trendings.stream()
                 .map(Utils::mapToMovieSummaryDTOTending)
+                .collect(Collectors.toList());
+    }
+
+    public static List<MovieSummaryDTO> mapToMovieSummaryDTOList(List<BaseMovie> movies) {
+        return movies.stream()
+                .map(Utils::mapToMovieSummaryDTO)
                 .collect(Collectors.toList());
     }
 
     private static MovieSummaryDTO mapToMovieSummaryDTOTending(Trending tmdbMovie) {
         return mapToMovieSummaryDTO(tmdbMovie.movie);
-    }
-
-    public static List<MovieSummaryDTO> mapToDTOListPopular(List<BaseMovie> movies) {
-        return movies.stream()
-                .map(Utils::mapToMovieSummaryDTO)
-                .collect(Collectors.toList());
     }
 
     private static MovieSummaryDTO mapToMovieSummaryDTO(BaseMovie tmdbMovie) {
