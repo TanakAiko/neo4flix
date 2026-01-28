@@ -3,6 +3,8 @@ package sen.dev.movie_service.services.impl;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,19 +83,38 @@ public class MovieServiceImpl implements MovieService {
     // --- 3. WATCHLIST ---
 
     @Override
-    public void addToWatchlist(String userId, Integer tmdbId) {
+    public void addToWatchlist(Integer tmdbId) {
+        String userId = getAuthenticatedUserId();
         movieRepository.addToWatchlist(userId, tmdbId);
     }
 
     @Override
-    public void removeFromWatchlist(String userId, Integer tmdbId) {
+    public void removeFromWatchlist(Integer tmdbId) {
+        String userId = getAuthenticatedUserId();
         movieRepository.removeFromWatchlist(userId, tmdbId);
     }
 
     @Override
-    public List<MovieSummaryDTO> getWatchlist(String userId) {
+    public List<MovieSummaryDTO> getWatchlist() {
+        String userId = getAuthenticatedUserId();
         return movieRepository.findWatchlistByUserId(userId).stream()
                 .map(MovieEntity::mapToSummaryDTO)
                 .toList();
+    }
+
+    // --- Helper Methods ---
+
+    /**
+     * Extracts the authenticated user's Keycloak ID (sub claim) from SecurityContextHolder.
+     * This follows the same pattern as user-service.
+     */
+    private String getAuthenticatedUserId() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            return jwt.getSubject();
+        }
+
+        throw new RuntimeException("Unauthenticated request - no valid JWT found");
     }
 }

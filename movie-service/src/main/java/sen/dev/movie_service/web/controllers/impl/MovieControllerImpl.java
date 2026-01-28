@@ -3,58 +3,65 @@ package sen.dev.movie_service.web.controllers.impl;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+import sen.dev.movie_service.services.MovieService;
 import sen.dev.movie_service.web.controllers.MovieController;
 import sen.dev.movie_service.web.dto.MovieDetailsDTO;
 import sen.dev.movie_service.web.dto.MovieSummaryDTO;
 
+@RestController
+@RequiredArgsConstructor
 public class MovieControllerImpl implements MovieController {
+
+    private final MovieService movieService;
 
     // --- Discovery ---
 
     @Override
     public ResponseEntity<List<MovieSummaryDTO>> getTrending() {
-        // TODO Auto-generated method stub
-        return null;
+        List<MovieSummaryDTO> trendingMovies = movieService.getTrendingMovies();
+        return ResponseEntity.ok(trendingMovies);
     }
 
     @Override
     public ResponseEntity<List<MovieSummaryDTO>> getPopular() {
-        // TODO Auto-generated method stub
-        return null;
+        List<MovieSummaryDTO> popularMovies = movieService.getPopularMovies();
+        return ResponseEntity.ok(popularMovies);
     }
 
     @Override
     public ResponseEntity<List<MovieSummaryDTO>> searchMovies(String title) {
-        // TODO Auto-generated method stub
-        return null;
+        List<MovieSummaryDTO> searchResults = movieService.searchMovies(title);
+        return ResponseEntity.ok(searchResults);
     }
 
     // --- Details ---
 
     @Override
     public ResponseEntity<MovieDetailsDTO> getMovieDetails(Integer tmdbId) {
-        // TODO Auto-generated method stub
-        return null;
+        MovieDetailsDTO movieDetails = movieService.getMovieByTmdbId(tmdbId);
+        return ResponseEntity.ok(movieDetails);
     }
 
     // --- Watchlist Actions ---
 
     @Override
     public ResponseEntity<Void> addToWatchlist(Integer tmdbId) {
-        // TODO Auto-generated method stub
-        return null;
+        movieService.addToWatchlist(tmdbId);
+        return ResponseEntity.ok().build();
     }
 
     @Override
     public ResponseEntity<Void> removeFromWatchlist(Integer tmdbId) {
-        // TODO Auto-generated method stub
-        return null;
+        movieService.removeFromWatchlist(tmdbId);
+        return ResponseEntity.noContent().build();
     }
 
     @Override
     public ResponseEntity<List<MovieSummaryDTO>> getWatchlist() {
-        // TODO Auto-generated method stub
-        return null;
+        List<MovieSummaryDTO> watchlist = movieService.getWatchlist();
+        return ResponseEntity.ok(watchlist);
     }
 }

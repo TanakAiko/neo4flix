@@ -26,10 +26,11 @@ public interface MovieService {
 
     // --- WATCHLIST (Database Operations) ---
     // These methods interact directly with Neo4j to manage User relationships.
+    // User ID is extracted from SecurityContextHolder (JWT sub claim).
 
-    void addToWatchlist(String userId, Integer tmdbId);
+    void addToWatchlist(Integer tmdbId);
 
-    void removeFromWatchlist(String userId, Integer tmdbId);
+    void removeFromWatchlist(Integer tmdbId);
 
-    List<MovieSummaryDTO> getWatchlist(String userId);
+    List<MovieSummaryDTO> getWatchlist();
 }

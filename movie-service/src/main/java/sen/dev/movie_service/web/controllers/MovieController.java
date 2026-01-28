@@ -32,7 +32,7 @@ public interface MovieController {
     @GetMapping("/{tmdbId}")
     ResponseEntity<MovieDetailsDTO> getMovieDetails(@PathVariable Integer tmdbId);
 
-    // --- Watchlist Actions ---
+    // --- Watchlist Actions (Requires Authentication) ---
 
     @PostMapping("/{tmdbId}/watchlist")
     ResponseEntity<Void> addToWatchlist(@PathVariable Integer tmdbId);
