@@ -14,6 +14,9 @@ public interface TmdbService {
     // Discovery: Popular (All time best)
     List<MovieSummaryDTO> fetchPopularMovies() throws IOException;
 
+    // Discovery: Search
+    List<MovieSummaryDTO> searchMovies(String title) throws IOException;
+
     // Details: Lazy Load (Save to DB)
     MovieEntity fetchAndMapMovieDetails(Integer tmdbId) throws IOException;
 }

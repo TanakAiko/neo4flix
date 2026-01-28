@@ -74,6 +74,19 @@ public class TmdbServiceImpl implements TmdbService {
     }
 
     @Override
+    public List<MovieSummaryDTO> searchMovies(String title) throws IOException {
+        Response<MovieResultsPage> response = tmdb.searchService()
+                .movie(title, 1, "en-US", null, false, null, null)
+                .execute();
+
+        if (!response.isSuccessful() || response.body() == null) {
+            throw new RuntimeException("Failed to search movies from TMDB");
+        }
+
+        return Utils.mapToMovieSummaryDTOList(response.body().results);
+    }
+
+    @Override
     public MovieEntity fetchAndMapMovieDetails(Integer tmdbId) throws IOException {
         MoviesService moviesService = tmdb.moviesService();
 

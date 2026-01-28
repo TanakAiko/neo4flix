@@ -29,7 +29,7 @@ public class Utils {
         return mapToMovieSummaryDTO(tmdbMovie.movie);
     }
 
-    private static MovieSummaryDTO mapToMovieSummaryDTO(BaseMovie tmdbMovie) {
+    public static MovieSummaryDTO mapToMovieSummaryDTO(BaseMovie tmdbMovie) {
         return MovieSummaryDTO.builder()
                 .tmdbId(tmdbMovie.id)
                 .title(tmdbMovie.title)
