@@ -30,6 +30,7 @@ public class SecurityConfig {
     private static final String API_MOVIES_POPULAR = "/api/movies/popular";
     private static final String API_MOVIES_SEARCH = "/api/movies/search";
     private static final String API_MOVIES_BY_ID = "/api/movies/{tmdbId}";
+    private static final String API_MOVIES_SIMILAR = "/api/movies/{tmdbId}/similar";
     private static final String API_MOVIES_WATCHLIST = "/api/movies/watchlist";
     private static final String API_MOVIES_WATCHLIST_ACTION = "/api/movies/*/watchlist";
 
@@ -46,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_MOVIES_POPULAR).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_SEARCH).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_BY_ID).permitAll()
+                        .requestMatchers(HttpMethod.GET, API_MOVIES_SIMILAR).permitAll()
 
                         // --- AUTHENTICATED ACCESS (JWT required) ---
                         // Watchlist features require a logged-in user
