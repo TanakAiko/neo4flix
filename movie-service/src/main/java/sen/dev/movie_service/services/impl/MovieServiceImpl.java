@@ -56,6 +56,7 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MovieSummaryDTO> getSimilarMovies(Integer tmdbId) {
         try {
             return tmdbService.fetchSimilarMovies(tmdbId);
