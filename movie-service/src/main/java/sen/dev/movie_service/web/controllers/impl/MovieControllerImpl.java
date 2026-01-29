@@ -37,6 +37,12 @@ public class MovieControllerImpl implements MovieController {
         return ResponseEntity.ok(searchResults);
     }
 
+    @Override
+    public ResponseEntity<List<MovieSummaryDTO>> getSimilarMovies(Integer tmdbId) {
+        List<MovieSummaryDTO> similarMovies = movieService.getSimilarMovies(tmdbId);
+        return ResponseEntity.ok(similarMovies);
+    }
+
     // --- Details ---
 
     @Override

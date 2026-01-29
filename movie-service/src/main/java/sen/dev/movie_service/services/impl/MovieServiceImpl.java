@@ -55,6 +55,15 @@ public class MovieServiceImpl implements MovieService {
         }
     }
 
+    @Override
+    public List<MovieSummaryDTO> getSimilarMovies(Integer tmdbId) {
+        try {
+            return tmdbService.fetchSimilarMovies(tmdbId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to fetch similar movies", e);
+        }
+    }
+
     // --- 2. DETAILS (Lazy Loading) ---
 
     @Override
@@ -105,7 +114,8 @@ public class MovieServiceImpl implements MovieService {
     // --- Helper Methods ---
 
     /**
-     * Extracts the authenticated user's Keycloak ID (sub claim) from SecurityContextHolder.
+     * Extracts the authenticated user's Keycloak ID (sub claim) from
+     * SecurityContextHolder.
      * This follows the same pattern as user-service.
      */
     private String getAuthenticatedUserId() {

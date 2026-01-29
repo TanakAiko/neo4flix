@@ -37,8 +37,8 @@ public class TmdbServiceImpl implements TmdbService {
     private final PersonRepository personRepository;
 
     public TmdbServiceImpl(@Value("${tmdb.api.key}") String tmdbApiKey,
-                           GenreRepository genreRepository,
-                           PersonRepository personRepository) {
+            GenreRepository genreRepository,
+            PersonRepository personRepository) {
         this.tmdb = new Tmdb(tmdbApiKey);
         this.genreRepository = genreRepository;
         this.personRepository = personRepository;
@@ -105,6 +105,19 @@ public class TmdbServiceImpl implements TmdbService {
 
         // 3. Map to our Entity
         return mapToEntity(tmdbMovie, credits);
+    }
+
+    @Override
+    public List<MovieSummaryDTO> fetchSimilarMovies(Integer tmdbId) throws IOException {
+        Response<MovieResultsPage> response = tmdb.moviesService()
+                .similar(tmdbId, 1, "en-US")
+                .execute();
+
+        if (!response.isSuccessful() || response.body() == null) {
+            return List.of();
+        }
+
+        return Utils.mapToMovieSummaryDTOList(response.body().results);
     }
 
     private MovieEntity mapToEntity(Movie tmdbMovie, Credits credits) {

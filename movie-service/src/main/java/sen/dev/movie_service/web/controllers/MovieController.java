@@ -27,6 +27,9 @@ public interface MovieController {
     @GetMapping("/search")
     ResponseEntity<List<MovieSummaryDTO>> searchMovies(@RequestParam String title);
 
+    @GetMapping("/{tmdbId}/similar")
+    ResponseEntity<List<MovieSummaryDTO>> getSimilarMovies(@PathVariable Integer tmdbId);
+
     // --- Details ---
 
     @GetMapping("/{tmdbId}")

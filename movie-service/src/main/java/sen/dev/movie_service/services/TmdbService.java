@@ -19,4 +19,7 @@ public interface TmdbService {
 
     // Details: Lazy Load (Save to DB)
     MovieEntity fetchAndMapMovieDetails(Integer tmdbId) throws IOException;
+
+    // Recommendations: Similar Movies
+    List<MovieSummaryDTO> fetchSimilarMovies(Integer tmdbId) throws IOException;
 }
