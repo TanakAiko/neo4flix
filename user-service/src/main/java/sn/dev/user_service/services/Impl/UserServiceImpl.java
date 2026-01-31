@@ -46,6 +46,19 @@ public class UserServiceImpl implements UserService {
     @Value("${keycloak.client.secret}")
     private String clientSecret;
 
+    private String getAuthenticatedUsername() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            String keycloakId = jwt.getSubject();
+            return userRepository.findById(keycloakId)
+                    .map(User::getUsername)
+                    .orElseThrow(() -> new NotFoundException("User profile not found"));
+        }
+
+        throw new BadRequestException("Unauthenticated request");
+    }
+
     @Override
     @Transactional
     public void registerUser(RegistrationDTO dto) {
@@ -235,8 +248,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void follow(String targetUsername) {
-        String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        String myUsername = getAuthenticatedUsername();
 
+        System.out.println("------------------>  User " + myUsername + " is trying to follow " + targetUsername);
         if (myUsername.equals(targetUsername)) {
             throw new BadRequestException("You cannot follow yourself");
         }
@@ -251,7 +265,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void unfollow(String targetUsername) {
-        String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        String myUsername = getAuthenticatedUsername();
 
         if (myUsername.equals(targetUsername)) {
             throw new BadRequestException("You cannot unfollow yourself");
