@@ -7,6 +7,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sn.dev.rating_service.data.repositories.RatingRepository;
+import sn.dev.rating_service.exceptions.NotFoundException;
+import sn.dev.rating_service.exceptions.BadRequestException;
 import sn.dev.rating_service.services.RatingService;
 import sn.dev.rating_service.web.dto.RatingRequestDTO;
 import sn.dev.rating_service.web.dto.UserRatingDTO;
@@ -31,7 +33,7 @@ public class RatingServiceImpl implements RatingService {
         Integer result = ratingRepository.rateMovie(userId, request.getTmdbId(), request.getScore());
 
         if (result == null) {
-            throw new RuntimeException("Movie with ID " + request.getTmdbId() +
+            throw new NotFoundException("Movie with ID " + request.getTmdbId() +
                     " not found. Please ensure the movie exists in the system before rating.");
         }
     }
@@ -93,6 +95,6 @@ public class RatingServiceImpl implements RatingService {
             return jwt.getSubject();
         }
 
-        throw new RuntimeException("Unauthenticated request - no valid JWT found");
+        throw new BadRequestException("Unauthenticated request - no valid JWT found");
     }
 }

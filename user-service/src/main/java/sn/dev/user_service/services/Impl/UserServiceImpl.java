@@ -21,6 +21,10 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 import sn.dev.user_service.data.entities.User;
 import sn.dev.user_service.data.repositories.UserRepository;
+import sn.dev.user_service.exceptions.BadRequestException;
+import sn.dev.user_service.exceptions.ConflictException;
+import sn.dev.user_service.exceptions.InternalServerErrorException;
+import sn.dev.user_service.exceptions.NotFoundException;
 import sn.dev.user_service.services.UserService;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.PublicProfileDTO;
@@ -45,15 +49,13 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void registerUser(RegistrationDTO dto) {
-        // Defensive: prevent duplicates in Neo4j (e.g., if Keycloak was reset but Neo4j kept data)
         if (userRepository.existsByUsername(dto.username())) {
-            throw new RuntimeException("Username is already taken.");
+            throw new ConflictException("Username is already taken.");
         }
         if (userRepository.findByEmail(dto.email()).isPresent()) {
-            throw new RuntimeException("Email is already taken.");
+            throw new ConflictException("Email is already taken.");
         }
 
-        // 1. Create the User Object for Keycloak
         UserRepresentation kcUser = new UserRepresentation();
         kcUser.setUsername(dto.username());
         kcUser.setEmail(dto.email());
@@ -62,43 +64,38 @@ public class UserServiceImpl implements UserService {
         kcUser.setEnabled(true);
         kcUser.setEmailVerified(false);
 
-        // 2. Add the Password
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(dto.password());
         credential.setTemporary(false);
         kcUser.setCredentials(List.of(credential));
 
-        // 3. Request Keycloak to create the user in your specific realm
         Response response = keycloak.realm("neo4flix").users().create(kcUser);
 
         if (response.getStatus() == 201) {
-            // 4. Get the ID Keycloak generated
             String keycloakId = CreatedResponseUtil.getCreatedId(response);
             try {
-                // Defensive: ensure uniqueness again just before save (handles race conditions)
                 if (userRepository.existsByUsername(dto.username())) {
                     keycloak.realm("neo4flix").users().get(keycloakId).remove();
-                    throw new RuntimeException("Username is already taken.");
+                    throw new ConflictException("Username is already taken.");
                 }
                 if (userRepository.findByEmail(dto.email()).isPresent()) {
                     keycloak.realm("neo4flix").users().get(keycloakId).remove();
-                    throw new RuntimeException("Email is already taken.");
+                    throw new ConflictException("Email is already taken.");
                 }
 
-                // 5. Save the user into Neo4j
                 User neo4jUser = new User(keycloakId, dto.username(), dto.email(), dto.firstname(), dto.lastname());
                 userRepository.save(neo4jUser);
+            } catch (ConflictException e) {
+                throw e;
             } catch (Exception e) {
-                // If Neo4j fails, delete the user from Keycloak to keep them in sync
                 keycloak.realm("neo4flix").users().get(keycloakId).remove();
-                throw new RuntimeException("Database error: Could not complete registration.");
+                throw new InternalServerErrorException("Database error: Could not complete registration.", e);
             }
         } else if (response.getStatus() == 409) {
-            throw new RuntimeException("Username or Email is already taken.");
+            throw new ConflictException("Username or Email is already taken.");
         } else {
-            // Handle cases like "User already exists" (Status 409)
-            throw new RuntimeException("Registration failed in Keycloak. Status: " + response.getStatus());
+            throw new InternalServerErrorException("Registration failed in Keycloak. Status: " + response.getStatus());
         }
     }
 
@@ -118,12 +115,14 @@ public class UserServiceImpl implements UserService {
                             .with("password", loginDto.password()))
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError,
-                            response -> Mono.error(new RuntimeException("Invalid username or password")))
+                            response -> Mono.error(new BadRequestException("Invalid username or password")))
                     .bodyToMono(TokenResponseDTO.class)
                     .block();
+        } catch (BadRequestException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Login failed: " + e.getMessage());
+            throw new InternalServerErrorException("Login failed", e);
         }
     }
 
@@ -142,24 +141,23 @@ public class UserServiceImpl implements UserService {
                             .with("refresh_token", refreshTokenDto.refreshToken()))
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError,
-                            response -> Mono.error(new RuntimeException("Refresh token is invalid or expired")))
+                            response -> Mono.error(new BadRequestException("Refresh token is invalid or expired")))
                     .bodyToMono(TokenResponseDTO.class)
                     .block();
+        } catch (BadRequestException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Could not refresh token: " + e.getMessage());
+            throw new InternalServerErrorException("Could not refresh token", e);
         }
     }
 
     @Override
     public UserProfileDTO getAuthenticatedUser() {
-        // 1. Extract the JWT from the Spring Security Context
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         if (principal instanceof Jwt jwt) {
-            // 2. The "subject" (sub) in the JWT is our Keycloak ID
             String keycloakId = jwt.getSubject();
 
-            // 3. Find the user in Neo4j using that ID
             return userRepository.findById(keycloakId)
                     .map(user -> {
                         Long followers = userRepository.countFollowers(user.getUsername());
@@ -172,10 +170,10 @@ public class UserServiceImpl implements UserService {
                                 followers,
                                 following);
                     })
-                    .orElseThrow(() -> new RuntimeException("User profile not found in database"));
+                    .orElseThrow(() -> new NotFoundException("User profile not found"));
         }
 
-        throw new RuntimeException("Unauthenticated request");
+        throw new BadRequestException("Unauthenticated request");
     }
 
     @Override
@@ -191,17 +189,17 @@ public class UserServiceImpl implements UserService {
                             .with("client_secret", clientSecret)
                             .with("refresh_token", refreshTokenDto.refreshToken()))
                     .retrieve()
-                    .toBodilessEntity() // We don't need a response body, just the status
+                    .toBodilessEntity()
                     .block();
         } catch (Exception e) {
-            throw new RuntimeException("Logout failed: " + e.getMessage());
+            throw new InternalServerErrorException("Logout failed", e);
         }
     }
 
     @Override
     public PublicProfileDTO getPublicProfile(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+                .orElseThrow(() -> new NotFoundException("User not found: " + username));
 
         Long followers = userRepository.countFollowers(username);
         Long following = userRepository.countFollowing(username);
@@ -217,7 +215,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<PublicProfileDTO> searchUsers(String query) {
         if (query == null || query.trim().isEmpty()) {
-            return List.of(); // Return empty list if search is empty
+            return List.of();
         }
 
         return userRepository.searchUsers(query).stream()
@@ -237,40 +235,32 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void follow(String targetUsername) {
-        // 1. Get current logged-in user's username
         String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // 2. Prevent self-following
         if (myUsername.equals(targetUsername)) {
-            throw new RuntimeException("You cannot follow yourself");
+            throw new BadRequestException("You cannot follow yourself");
         }
 
-        // 3. Check if target user exists
         if (!userRepository.existsByUsername(targetUsername)) {
-            throw new RuntimeException("User '" + targetUsername + "' not found");
+            throw new NotFoundException("User '" + targetUsername + "' not found");
         }
 
-        // 4. Create relationship in Neo4j
         userRepository.followUser(myUsername, targetUsername);
     }
 
     @Override
     @Transactional
     public void unfollow(String targetUsername) {
-        // 1. Get current logged-in user's username
         String myUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // 2. Prevent self-unfollowing
         if (myUsername.equals(targetUsername)) {
-            throw new RuntimeException("You cannot unfollow yourself");
+            throw new BadRequestException("You cannot unfollow yourself");
         }
 
-        // 3. Check if target user exists
         if (!userRepository.existsByUsername(targetUsername)) {
-            throw new RuntimeException("User '" + targetUsername + "' not found");
+            throw new NotFoundException("User '" + targetUsername + "' not found");
         }
 
-        // 4. Delete relationship in Neo4j
         userRepository.unfollowUser(myUsername, targetUsername);
     }
 
@@ -298,10 +288,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void adminDeleteUser(String username) {
         if (username == null || username.isBlank()) {
-            throw new RuntimeException("Username is required");
+            throw new BadRequestException("Username is required");
         }
 
-        // Resolve Keycloak userId for this username
         UserRepresentation kcUser = keycloak.realm("neo4flix")
                 .users()
                 .searchByUsername(username, true)
@@ -310,19 +299,20 @@ public class UserServiceImpl implements UserService {
                 .orElse(null);
 
         if (kcUser == null || kcUser.getId() == null || kcUser.getId().isBlank()) {
-            // Cleanup stale Neo4j data (if any) then fail.
             userRepository.findByUsername(username)
                     .ifPresent(u -> userRepository.deleteById(u.getKeycloakId()));
-            throw new RuntimeException("Keycloak user not found: " + username);
+            throw new NotFoundException("Keycloak user not found: " + username);
         }
 
         String keycloakId = kcUser.getId();
 
-        // Delete Neo4j node (detaches relationships by deleting the node entity)
         userRepository.findById(keycloakId).ifPresent(u -> userRepository.deleteById(keycloakId));
 
-        // Delete Keycloak account
-        keycloak.realm("neo4flix").users().get(keycloakId).remove();
+        try {
+            keycloak.realm("neo4flix").users().get(keycloakId).remove();
+        } catch (Exception e) {
+            throw new InternalServerErrorException("Failed to delete user in Keycloak", e);
+        }
     }
 
 }

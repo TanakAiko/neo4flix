@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import sen.dev.movie_service.data.entities.MovieEntity;
 import sen.dev.movie_service.data.repositories.MovieRepository;
+import sen.dev.movie_service.exceptions.BadRequestException;
 import sen.dev.movie_service.services.MovieService;
 import sen.dev.movie_service.services.TmdbService;
 import sen.dev.movie_service.web.dto.MovieDetailsDTO;
@@ -126,6 +127,6 @@ public class MovieServiceImpl implements MovieService {
             return jwt.getSubject();
         }
 
-        throw new RuntimeException("Unauthenticated request - no valid JWT found");
+        throw new BadRequestException("Unauthenticated request - no valid JWT found");
     }
 }
