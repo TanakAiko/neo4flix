@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users/follow/{username}").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/unfollow/{username}").authenticated()
 
+                        // --- ADMIN ONLY ---
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/{username}").hasRole("ADMIN")
+
                         // Deny anything else as a safety net
                         .anyRequest().permitAll())
                 .oauth2ResourceServer(oauth2 -> oauth2

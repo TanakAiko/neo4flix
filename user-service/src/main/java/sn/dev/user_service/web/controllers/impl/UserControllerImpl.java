@@ -82,4 +82,10 @@ public class UserControllerImpl implements UserController {
     public ResponseEntity<List<PublicProfileDTO>> getFollowing(String username) {
         return ResponseEntity.ok(userService.getFollowingList(username));
     }
+
+    @Override
+    public ResponseEntity<Void> adminDeleteUser(String username) {
+        userService.adminDeleteUser(username);
+        return ResponseEntity.noContent().build();
+    }
 }

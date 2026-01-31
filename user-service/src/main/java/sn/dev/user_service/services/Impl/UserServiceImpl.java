@@ -45,6 +45,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void registerUser(RegistrationDTO dto) {
+        // Defensive: prevent duplicates in Neo4j (e.g., if Keycloak was reset but Neo4j kept data)
+        if (userRepository.existsByUsername(dto.username())) {
+            throw new RuntimeException("Username is already taken.");
+        }
+        if (userRepository.findByEmail(dto.email()).isPresent()) {
+            throw new RuntimeException("Email is already taken.");
+        }
+
         // 1. Create the User Object for Keycloak
         UserRepresentation kcUser = new UserRepresentation();
         kcUser.setUsername(dto.username());
@@ -68,6 +76,16 @@ public class UserServiceImpl implements UserService {
             // 4. Get the ID Keycloak generated
             String keycloakId = CreatedResponseUtil.getCreatedId(response);
             try {
+                // Defensive: ensure uniqueness again just before save (handles race conditions)
+                if (userRepository.existsByUsername(dto.username())) {
+                    keycloak.realm("neo4flix").users().get(keycloakId).remove();
+                    throw new RuntimeException("Username is already taken.");
+                }
+                if (userRepository.findByEmail(dto.email()).isPresent()) {
+                    keycloak.realm("neo4flix").users().get(keycloakId).remove();
+                    throw new RuntimeException("Email is already taken.");
+                }
+
                 // 5. Save the user into Neo4j
                 User neo4jUser = new User(keycloakId, dto.username(), dto.email(), dto.firstname(), dto.lastname());
                 userRepository.save(neo4jUser);
@@ -274,6 +292,37 @@ public class UserServiceImpl implements UserService {
                         userRepository.countFollowers(u.getUsername()),
                         userRepository.countFollowing(u.getUsername())))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public void adminDeleteUser(String username) {
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("Username is required");
+        }
+
+        // Resolve Keycloak userId for this username
+        UserRepresentation kcUser = keycloak.realm("neo4flix")
+                .users()
+                .searchByUsername(username, true)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        if (kcUser == null || kcUser.getId() == null || kcUser.getId().isBlank()) {
+            // Cleanup stale Neo4j data (if any) then fail.
+            userRepository.findByUsername(username)
+                    .ifPresent(u -> userRepository.deleteById(u.getKeycloakId()));
+            throw new RuntimeException("Keycloak user not found: " + username);
+        }
+
+        String keycloakId = kcUser.getId();
+
+        // Delete Neo4j node (detaches relationships by deleting the node entity)
+        userRepository.findById(keycloakId).ifPresent(u -> userRepository.deleteById(keycloakId));
+
+        // Delete Keycloak account
+        keycloak.realm("neo4flix").users().get(keycloakId).remove();
     }
 
 }

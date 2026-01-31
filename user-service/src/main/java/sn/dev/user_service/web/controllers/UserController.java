@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import sn.dev.user_service.web.dto.LoginDTO;
 import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
@@ -54,4 +55,8 @@ public interface UserController {
 
     @GetMapping("/{username}/followers")
     ResponseEntity<List<PublicProfileDTO>> getFollowers(@PathVariable String username);
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{username}")
+    ResponseEntity<Void> adminDeleteUser(@PathVariable String username);
 }

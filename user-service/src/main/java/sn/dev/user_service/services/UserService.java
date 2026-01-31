@@ -31,4 +31,6 @@ public interface UserService {
     List<PublicProfileDTO> getFollowingList(String username);
 
     List<PublicProfileDTO> getFollowersList(String username);
+
+    void adminDeleteUser(String username);
 }
