@@ -13,9 +13,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -56,23 +53,23 @@ public class SecurityConfig {
     /**
      * CORS configuration for Angular frontend.
      */
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:4200",  // Angular dev server
-                "http://localhost:8080"   // Keycloak
-        ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+    // @Bean
+    // public CorsConfigurationSource corsConfigurationSource() {
+    //     CorsConfiguration configuration = new CorsConfiguration();
+    //     configuration.setAllowedOrigins(List.of(
+    //             "http://localhost:4200",  // Angular dev server
+    //             "http://localhost:8080"   // Keycloak
+    //     ));
+    //     configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    //     configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+    //     configuration.setExposedHeaders(List.of("Authorization"));
+    //     configuration.setAllowCredentials(true);
+    //     configuration.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    //     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    //     source.registerCorsConfiguration("/**", configuration);
+    //     return source;
+    // }
 
     /**
      * Maps Keycloak realm_access.roles to Spring Security GrantedAuthority.

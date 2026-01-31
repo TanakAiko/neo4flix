@@ -1,25 +1,29 @@
 package sn.dev.user_service.configs;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    // API endpoint constants
-    private static final String API_USERS = "/api/users";
-    private static final String API_USERS_CUSTOM = "/api/users/custom";
-    private static final String API_USERS_USERNAME = "/api/users/{username}";
-    private static final String API_USERS_USER_USERNAME_CUSTOM = "/api/users/{username}/custom";
-    private static final String API_PRODUCTS = "/api/products";
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -27,34 +31,69 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                API_USERS,
-                                API_USERS_USERNAME,
-                                API_USERS_CUSTOM,
-                                API_USERS_USER_USERNAME_CUSTOM)
-                        .authenticated()
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                API_PRODUCTS)
-                        .authenticated()
-                        .requestMatchers(
-                                HttpMethod.PUT,
-                                API_USERS_USERNAME)
-                        .authenticated()
-                        .requestMatchers(
-                                HttpMethod.PATCH,
-                                API_USERS_USERNAME)
-                        .authenticated()
-                        .requestMatchers(
-                                HttpMethod.DELETE,
-                                API_USERS_USERNAME)
-                        .authenticated()
-                        .anyRequest().permitAll() // All endpoints are publicly accessible
-                )
+
+                        // --- PUBLIC ACCESS (No JWT required) ---
+                        // Authentication endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users/refresh").permitAll()
+
+                        // Public profile viewing
+                        .requestMatchers(HttpMethod.GET, "/api/users/{username}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/{username}/followers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/{username}/following").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/search").permitAll()
+
+                        // --- AUTHENTICATED ACCESS (JWT required) ---
+                        // User's own profile
+                        .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+
+                        // Logout requires authentication
+                        .requestMatchers(HttpMethod.POST, "/api/users/logout").authenticated()
+
+                        // Follow/Unfollow actions require authentication
+                        .requestMatchers(HttpMethod.POST, "/api/users/follow/{username}").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/unfollow/{username}").authenticated()
+
+                        // Deny anything else as a safety net
+                        .anyRequest().permitAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(Customizer.withDefaults()) // Enable JWT validation
-                );
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+
         return http.build();
+    }
+
+    /**
+     * Maps Keycloak realm_access.roles to Spring Security GrantedAuthority.
+     * Enables @PreAuthorize("hasRole('ADMIN')") and similar annotations.
+     */
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(new KeycloakRealmRoleConverter());
+        return converter;
+    }
+
+    /**
+     * Extracts roles from Keycloak JWT's realm_access.roles claim.
+     */
+    static class KeycloakRealmRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+        @Override
+        @SuppressWarnings("unchecked")
+        public Collection<GrantedAuthority> convert(Jwt jwt) {
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            if (realmAccess == null || realmAccess.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<String> roles = (List<String>) realmAccess.get("roles");
+            if (roles == null) {
+                return Collections.emptyList();
+            }
+
+            return roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                    .collect(Collectors.toList());
+        }
     }
 }
