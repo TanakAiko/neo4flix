@@ -25,8 +25,11 @@ public interface MovieRepository extends Neo4jRepository<MovieEntity, Long> {
             "RETURN r")
     void addToWatchlist(@Param("userId") String userId, @Param("tmdbId") Integer tmdbId);
 
-    @Query("MATCH (u:User {keycloakId: $userId})-[r:IN_WATCHLIST]->(m:Movie) DELETE r")
-    void removeFromWatchlist(@Param("userId") String userId, @Param("tmdbId") Integer tmdbId);
+    @Query("MATCH (u:User {keycloakId: $userId})-[r:IN_WATCHLIST]->(m:Movie {tmdbId: $tmdbId}) DELETE r RETURN count(r)")
+    int removeFromWatchlist(@Param("userId") String userId, @Param("tmdbId") Integer tmdbId);
+
+    @Query("MATCH (u:User {keycloakId: $userId})-[:IN_WATCHLIST]->(m:Movie {tmdbId: $tmdbId}) RETURN count(m) > 0")
+    boolean isInWatchlist(@Param("userId") String userId, @Param("tmdbId") Integer tmdbId);
 
     @Query("MATCH (u:User {keycloakId: $userId})-[:IN_WATCHLIST]->(m:Movie) RETURN m")
     List<MovieEntity> findWatchlistByUserId(@Param("userId") String userId);

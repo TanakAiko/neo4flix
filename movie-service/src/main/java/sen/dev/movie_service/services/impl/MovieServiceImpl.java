@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import sen.dev.movie_service.data.entities.MovieEntity;
 import sen.dev.movie_service.data.repositories.MovieRepository;
 import sen.dev.movie_service.exceptions.BadRequestException;
+import sen.dev.movie_service.exceptions.ConflictException;
+import sen.dev.movie_service.exceptions.InternalServerErrorException;
+import sen.dev.movie_service.exceptions.NotFoundException;
 import sen.dev.movie_service.services.MovieService;
 import sen.dev.movie_service.services.TmdbService;
 import sen.dev.movie_service.web.dto.MovieDetailsDTO;
@@ -32,7 +35,7 @@ public class MovieServiceImpl implements MovieService {
         try {
             return tmdbService.fetchTrendingMovies();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch trending movies", e);
+            throw new InternalServerErrorException("Failed to fetch trending movies: " + e.getMessage());
         }
     }
 
@@ -42,7 +45,7 @@ public class MovieServiceImpl implements MovieService {
         try {
             return tmdbService.fetchPopularMovies();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch popular movies", e);
+            throw new InternalServerErrorException("Failed to fetch popular movies: " + e.getMessage());
         }
     }
 
@@ -52,7 +55,7 @@ public class MovieServiceImpl implements MovieService {
         try {
             return tmdbService.searchMovies(title);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to search movies", e);
+            throw new InternalServerErrorException("Failed to search movies: " + e.getMessage());
         }
     }
 
@@ -62,7 +65,7 @@ public class MovieServiceImpl implements MovieService {
         try {
             return tmdbService.fetchSimilarMovies(tmdbId);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch similar movies", e);
+            throw new InternalServerErrorException("Failed to fetch similar movies: " + e.getMessage());
         }
     }
 
@@ -83,7 +86,7 @@ public class MovieServiceImpl implements MovieService {
                 movieEntity = tmdbService.fetchAndMapMovieDetails(tmdbId);
                 movieRepository.save(movieEntity);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to load movie from TMDB", e);
+                throw new NotFoundException("Movie with tmdbId " + tmdbId + " not found");
             }
         }
 
@@ -96,13 +99,31 @@ public class MovieServiceImpl implements MovieService {
     @Override
     public void addToWatchlist(Integer tmdbId) {
         String userId = getAuthenticatedUserId();
+        
+        // Validate movie exists (this will fetch from TMDB if not in DB)
+        ensureMovieExists(tmdbId);
+        
+        // Check if already in watchlist
+        if (movieRepository.isInWatchlist(userId, tmdbId)) {
+            throw new ConflictException("Movie with tmdbId " + tmdbId + " is already in your watchlist");
+        }
+        
         movieRepository.addToWatchlist(userId, tmdbId);
     }
 
     @Override
     public void removeFromWatchlist(Integer tmdbId) {
         String userId = getAuthenticatedUserId();
-        movieRepository.removeFromWatchlist(userId, tmdbId);
+        
+        // Check if movie is in watchlist before attempting removal
+        if (!movieRepository.isInWatchlist(userId, tmdbId)) {
+            throw new NotFoundException("Movie with tmdbId " + tmdbId + " is not in your watchlist");
+        }
+        
+        int deletedCount = movieRepository.removeFromWatchlist(userId, tmdbId);
+        if (deletedCount == 0) {
+            throw new InternalServerErrorException("Failed to remove movie from watchlist");
+        }
     }
 
     @Override
@@ -114,6 +135,20 @@ public class MovieServiceImpl implements MovieService {
     }
 
     // --- Helper Methods ---
+
+    /**
+     * Ensures movie exists in DB. If not, fetches from TMDB and saves it.
+     */
+    private void ensureMovieExists(Integer tmdbId) {
+        if (movieRepository.findByTmdbId(tmdbId).isEmpty()) {
+            try {
+                MovieEntity movieEntity = tmdbService.fetchAndMapMovieDetails(tmdbId);
+                movieRepository.save(movieEntity);
+            } catch (Exception e) {
+                throw new NotFoundException("Movie with tmdbId " + tmdbId + " not found in TMDB");
+            }
+        }
+    }
 
     /**
      * Extracts the authenticated user's Keycloak ID (sub claim) from
