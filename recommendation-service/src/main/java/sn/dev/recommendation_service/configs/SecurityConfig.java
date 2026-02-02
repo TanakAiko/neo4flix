@@ -37,6 +37,7 @@ public class SecurityConfig {
                         // so a valid JWT is always required.
                         .requestMatchers(HttpMethod.GET, "/api/recommendations").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/recommendations/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/recommendations/**").authenticated()
 
                         .anyRequest().permitAll())
                 .oauth2ResourceServer(oauth2 -> oauth2

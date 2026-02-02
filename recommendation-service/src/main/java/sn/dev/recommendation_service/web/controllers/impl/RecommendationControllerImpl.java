@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import sn.dev.recommendation_service.services.RecommendationService;
 import sn.dev.recommendation_service.web.controllers.RecommendationController;
 import sn.dev.recommendation_service.web.dto.RecommendationDTO;
+import sn.dev.recommendation_service.web.dto.ShareRequestDTO;
+import sn.dev.recommendation_service.web.dto.SharedRecommendationDTO;
 
 @RestController
 @RequiredArgsConstructor
@@ -34,5 +36,23 @@ public class RecommendationControllerImpl implements RecommendationController {
 
         // If unauthenticated, return 401 or an empty list depending on preference
         return ResponseEntity.status(401).build();
+    }
+
+    @Override
+    public ResponseEntity<Void> shareRecommendation(ShareRequestDTO request) {
+        recommendationService.shareRecommendation(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<List<SharedRecommendationDTO>> getReceivedRecommendations() {
+        List<SharedRecommendationDTO> received = recommendationService.getReceivedRecommendations();
+        return ResponseEntity.ok(received);
+    }
+
+    @Override
+    public ResponseEntity<List<SharedRecommendationDTO>> getSentRecommendations() {
+        List<SharedRecommendationDTO> sent = recommendationService.getSentRecommendations();
+        return ResponseEntity.ok(sent);
     }
 }

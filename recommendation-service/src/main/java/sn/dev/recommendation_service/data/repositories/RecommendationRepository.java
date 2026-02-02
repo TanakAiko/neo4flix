@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Repository for recommendation queries.
@@ -65,5 +66,97 @@ public class RecommendationRepository {
             .fetch()
             .one()
             .orElse(null);
+    }
+
+    // ==================== SHARING RECOMMENDATIONS ====================
+
+    /**
+     * Share a movie recommendation with another user.
+     * Creates a SHARED_RECOMMENDATION relationship from sender to movie,
+     * with metadata about the recipient and message.
+     * 
+     * Returns the recipient's username if successful, empty if movie or recipient doesn't exist.
+     */
+    public Optional<String> shareRecommendation(String senderKeycloakId, String recipientUsername, 
+                                                 Integer tmdbId, String message) {
+        return neo4jClient.query(
+                "MATCH (sender:User {keycloakId: $senderKeycloakId}) " +
+                "MATCH (recipient:User {username: $recipientUsername}) " +
+                "MATCH (m:Movie {tmdbId: $tmdbId}) " +
+                "WHERE sender <> recipient " +
+                "CREATE (sender)-[:SHARED_RECOMMENDATION {" +
+                "   toUserId: recipient.keycloakId, " +
+                "   toUsername: recipient.username, " +
+                "   message: $message, " +
+                "   sharedAt: datetime()" +
+                "}]->(m) " +
+                "RETURN recipient.username")
+            .bind(senderKeycloakId).to("senderKeycloakId")
+            .bind(recipientUsername).to("recipientUsername")
+            .bind(tmdbId).to("tmdbId")
+            .bind(message).to("message")
+            .fetchAs(String.class)
+            .one();
+    }
+
+    /**
+     * Get all recommendations shared TO a specific user.
+     * Returns movie details along with who shared it and when.
+     */
+    public List<Map<String, Object>> findReceivedSharedRecommendations(String recipientKeycloakId) {
+        Collection<Map<String, Object>> results = neo4jClient.query(
+                "MATCH (sender:User)-[s:SHARED_RECOMMENDATION]->(m:Movie) " +
+                "WHERE s.toUserId = $recipientKeycloakId " +
+                "RETURN m.tmdbId AS tmdbId, " +
+                "       m.title AS title, " +
+                "       m.posterPath AS posterPath, " +
+                "       m.overview AS overview, " +
+                "       m.voteAverage AS voteAverage, " +
+                "       m.releaseYear AS releaseYear, " +
+                "       sender.username AS fromUsername, " +
+                "       s.message AS message, " +
+                "       s.sharedAt AS sharedAt " +
+                "ORDER BY s.sharedAt DESC")
+            .bind(recipientKeycloakId).to("recipientKeycloakId")
+            .fetch()
+            .all();
+        return List.copyOf(results);
+    }
+
+    /**
+     * Get all recommendations shared BY a specific user (sent items).
+     */
+    public List<Map<String, Object>> findSentSharedRecommendations(String senderKeycloakId) {
+        Collection<Map<String, Object>> results = neo4jClient.query(
+                "MATCH (sender:User {keycloakId: $senderKeycloakId})-[s:SHARED_RECOMMENDATION]->(m:Movie) " +
+                "RETURN m.tmdbId AS tmdbId, " +
+                "       m.title AS title, " +
+                "       m.posterPath AS posterPath, " +
+                "       s.toUsername AS toUsername, " +
+                "       s.message AS message, " +
+                "       s.sharedAt AS sharedAt " +
+                "ORDER BY s.sharedAt DESC")
+            .bind(senderKeycloakId).to("senderKeycloakId")
+            .fetch()
+            .all();
+        return List.copyOf(results);
+    }
+
+    /**
+     * Check if user already shared this specific movie with this recipient.
+     * Prevents duplicate shares.
+     */
+    public boolean hasAlreadyShared(String senderKeycloakId, String recipientUsername, Integer tmdbId) {
+        return neo4jClient.query(
+                "MATCH (sender:User {keycloakId: $senderKeycloakId})-[s:SHARED_RECOMMENDATION]->(m:Movie {tmdbId: $tmdbId}) " +
+                "MATCH (recipient:User {username: $recipientUsername}) " +
+                "WHERE s.toUserId = recipient.keycloakId " +
+                "RETURN count(s) > 0")
+            .bind(senderKeycloakId).to("senderKeycloakId")
+            .bind(recipientUsername).to("recipientUsername")
+            .bind(tmdbId).to("tmdbId")
+            .fetchAs(Boolean.class)
+            .one()
+            .orElse(false);
     }
 }

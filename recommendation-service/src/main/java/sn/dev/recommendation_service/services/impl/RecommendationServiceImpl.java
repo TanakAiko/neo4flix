@@ -1,9 +1,12 @@
 package sn.dev.recommendation_service.services.impl;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -11,9 +14,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 import sn.dev.recommendation_service.data.repositories.RecommendationRepository;
+import sn.dev.recommendation_service.exceptions.BadRequestException;
+import sn.dev.recommendation_service.exceptions.ConflictException;
+import sn.dev.recommendation_service.exceptions.NotFoundException;
 import sn.dev.recommendation_service.services.RecommendationService;
 import sn.dev.recommendation_service.web.dto.MovieSummaryDTO;
 import sn.dev.recommendation_service.web.dto.RecommendationDTO;
+import sn.dev.recommendation_service.web.dto.ShareRequestDTO;
+import sn.dev.recommendation_service.web.dto.SharedRecommendationDTO;
 
 @Service
 @RequiredArgsConstructor
@@ -100,5 +108,91 @@ public class RecommendationServiceImpl implements RecommendationService {
             return i;
         }
         return null;
+    }
+
+    // ==================== SHARING RECOMMENDATIONS ====================
+
+    @Override
+    @Transactional
+    public void shareRecommendation(ShareRequestDTO request) {
+        String senderKeycloakId = getAuthenticatedUserId();
+
+        // Check if already shared
+        if (recommendationRepository.hasAlreadyShared(senderKeycloakId, request.getRecipientUsername(), request.getTmdbId())) {
+            throw new ConflictException("You have already shared this movie with " + request.getRecipientUsername());
+        }
+
+        // Attempt to create the share
+        recommendationRepository.shareRecommendation(
+                senderKeycloakId,
+                request.getRecipientUsername(),
+                request.getTmdbId(),
+                request.getMessage()
+        ).orElseThrow(() -> new NotFoundException(
+                "Could not share recommendation. Make sure the movie and recipient exist."));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SharedRecommendationDTO> getReceivedRecommendations() {
+        String userId = getAuthenticatedUserId();
+        List<Map<String, Object>> results = recommendationRepository.findReceivedSharedRecommendations(userId);
+
+        return results.stream()
+                .map(this::mapToSharedRecommendationDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SharedRecommendationDTO> getSentRecommendations() {
+        String userId = getAuthenticatedUserId();
+        List<Map<String, Object>> results = recommendationRepository.findSentSharedRecommendations(userId);
+
+        return results.stream()
+                .map(this::mapToSentRecommendationDTO)
+                .toList();
+    }
+
+    private SharedRecommendationDTO mapToSharedRecommendationDTO(Map<String, Object> map) {
+        return SharedRecommendationDTO.builder()
+                .tmdbId(toInteger(map.get("tmdbId")))
+                .title((String) map.get("title"))
+                .posterPath((String) map.get("posterPath"))
+                .overview((String) map.get("overview"))
+                .voteAverage((Double) map.get("voteAverage"))
+                .releaseYear(toInteger(map.get("releaseYear")))
+                .fromUsername((String) map.get("fromUsername"))
+                .message((String) map.get("message"))
+                .sharedAt(convertOffsetToLocal(map.get("sharedAt")))
+                .build();
+    }
+
+    private SharedRecommendationDTO mapToSentRecommendationDTO(Map<String, Object> map) {
+        return SharedRecommendationDTO.builder()
+                .tmdbId(toInteger(map.get("tmdbId")))
+                .title((String) map.get("title"))
+                .posterPath((String) map.get("posterPath"))
+                .fromUsername((String) map.get("toUsername")) // Reusing field for "sent to"
+                .message((String) map.get("message"))
+                .sharedAt(convertOffsetToLocal(map.get("sharedAt")))
+                .build();
+    }
+
+    private java.time.LocalDateTime convertOffsetToLocal(Object date) {
+        if (date instanceof OffsetDateTime odt) {
+            return odt.toLocalDateTime();
+        }
+        return null;
+    }
+
+    private String getAuthenticatedUserId() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof Jwt jwt) {
+            return jwt.getSubject();
+        }
+
+        throw new BadRequestException("Unauthenticated request - no valid JWT found");
     }
 }
