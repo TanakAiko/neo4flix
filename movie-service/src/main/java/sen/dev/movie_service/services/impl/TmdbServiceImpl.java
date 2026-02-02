@@ -61,13 +61,13 @@ public class TmdbServiceImpl implements TmdbService {
 
     @Override
     public List<MovieSummaryDTO> fetchPopularMovies() throws IOException {
-
+        // Use TMDB's "top_rated" endpoint for all-time highest rated movies
         Response<MovieResultsPage> response = tmdb.moviesService()
-                .popular(1, "en-US", null)
+                .topRated(1, "en-US", null)
                 .execute();
 
         if (!response.isSuccessful() || response.body() == null) {
-            throw new RuntimeException("Failed to fetch popular movies from TMDB");
+            throw new RuntimeException("Failed to fetch all-time popular movies from TMDB");
         }
 
         return Utils.mapToMovieSummaryDTOList(response.body().results);
