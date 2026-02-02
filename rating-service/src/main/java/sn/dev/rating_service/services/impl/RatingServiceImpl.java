@@ -29,20 +29,21 @@ public class RatingServiceImpl implements RatingService {
         String userId = getAuthenticatedUserId();
 
         // Call the repository Cypher query
-        // It returns the tmdbId if successful, or null if the movie node wasn't found
-        Integer result = ratingRepository.rateMovie(userId, request.getTmdbId(), request.getScore());
-
-        if (result == null) {
-            throw new NotFoundException("Movie with ID " + request.getTmdbId() +
-                    " not found. Please ensure the movie exists in the system before rating.");
-        }
+        // It returns the tmdbId if successful, or empty if the movie node wasn't found
+        ratingRepository.rateMovie(userId, request.getTmdbId(), request.getScore())
+            .orElseThrow(() -> new NotFoundException("Movie with ID " + request.getTmdbId() +
+                    " not found. Please ensure the movie exists in the system before rating."));
     }
 
     @Override
     @Transactional
     public void deleteRating(Integer tmdbId) {
         String userId = getAuthenticatedUserId();
-        ratingRepository.deleteRating(userId, tmdbId);
+        long deleted = ratingRepository.deleteRating(userId, tmdbId);
+        
+        if (deleted == 0) {
+            throw new NotFoundException("No rating found for movie with ID " + tmdbId);
+        }
     }
 
     @Override
@@ -60,13 +61,13 @@ public class RatingServiceImpl implements RatingService {
     @Transactional(readOnly = true)
     public Integer getRating(Integer tmdbId) {
         String userId = getAuthenticatedUserId();
-        return ratingRepository.findRatingByUserAndMovie(userId, tmdbId);
+        return ratingRepository.findRatingByUserAndMovie(userId, tmdbId).orElse(null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Double getAverageRating(Integer tmdbId) {
-        return ratingRepository.findAverageRatingByTmdbId(tmdbId);
+        return ratingRepository.findAverageRatingByTmdbId(tmdbId).orElse(null);
     }
 
     // Helper to convert raw Map from Neo4j to DTO
