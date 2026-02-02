@@ -73,12 +73,23 @@ public class RatingServiceImpl implements RatingService {
     // Helper to convert raw Map from Neo4j to DTO
     private UserRatingDTO mapToUserRatingDTO(Map<String, Object> map) {
         return UserRatingDTO.builder()
-                .tmdbId((Integer) map.get("tmdbId"))
+                .tmdbId(toInteger(map.get("tmdbId")))
                 .title((String) map.get("title"))
                 .posterPath((String) map.get("posterPath"))
-                .score((Integer) map.get("score"))
+                .score(toInteger(map.get("score")))
                 .ratedDate(convertOffsetToLocal(map.get("ratedDate")))
                 .build();
+    }
+
+    // Helper to safely convert Neo4j Long to Integer
+    private Integer toInteger(Object value) {
+        if (value instanceof Long l) {
+            return l.intValue();
+        }
+        if (value instanceof Integer i) {
+            return i;
+        }
+        return null;
     }
 
     // Helper to handle Neo4j's OffsetDateTime to Java LocalDateTime
