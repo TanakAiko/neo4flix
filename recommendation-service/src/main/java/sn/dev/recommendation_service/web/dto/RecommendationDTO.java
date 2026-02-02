@@ -15,5 +15,6 @@ public class RecommendationDTO {
     private String posterPath;
     private String overview;
     private Double voteAverage;
+    private Integer releaseYear;
     private String reason; // e.g., "Popular among users who liked Inception", "Similar to The Matrix"
 }

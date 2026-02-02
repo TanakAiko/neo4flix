@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -23,15 +22,6 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final WebClient webClient;
 
-    // Constructor-based injection for WebClient
-    public RecommendationServiceImpl(RecommendationRepository repository,
-            @Value("${movie-service.base-url:http://localhost:8082}") String baseUrl) {
-        this.recommendationRepository = repository;
-        this.webClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .build();
-    }
-
     @Override
     @Transactional(readOnly = true)
     public List<RecommendationDTO> getRecommendations(String userId) {
@@ -43,11 +33,12 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         for (Map<String, Object> movie : cfResults) {
             allRecommendations.add(RecommendationDTO.builder()
-                    .tmdbId((Integer) movie.get("tmdbId"))
+                    .tmdbId(toInteger(movie.get("tmdbId")))
                     .title((String) movie.get("title"))
                     .overview((String) movie.get("overview"))
                     .voteAverage((Double) movie.get("voteAverage"))
                     .posterPath((String) movie.get("posterPath"))
+                    .releaseYear(toInteger(movie.get("releaseYear")))
                     .reason("Popular with similar users")
                     .build());
         }
@@ -60,7 +51,7 @@ public class RecommendationServiceImpl implements RecommendationService {
             Map<String, Object> favorite = recommendationRepository.findFavoriteMovie(userId);
 
             if (favorite != null) {
-                Integer favoriteTmdbId = (Integer) favorite.get("tmdbId");
+                Integer favoriteTmdbId = toInteger(favorite.get("tmdbId"));
 
                 // 2. Call Movie Service via WebClient
                 List<MovieSummaryDTO> similarFromMovieService = fetchSimilarFromMovieService(favoriteTmdbId);
@@ -74,6 +65,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                                 .overview(dto.getOverview())
                                 .voteAverage(dto.getVoteAverage())
                                 .posterPath(dto.getPosterPath())
+                                .releaseYear(dto.getReleaseYear())
                                 .reason("Similar to your favorite movie")
                                 .build());
                     }
@@ -97,5 +89,16 @@ public class RecommendationServiceImpl implements RecommendationService {
                     return Mono.just(List.of());
                 })
                 .block();
+    }
+
+    // Helper to safely convert Neo4j Long to Integer
+    private Integer toInteger(Object value) {
+        if (value instanceof Long l) {
+            return l.intValue();
+        }
+        if (value instanceof Integer i) {
+            return i;
+        }
+        return null;
     }
 }
