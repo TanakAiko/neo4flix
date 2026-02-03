@@ -32,6 +32,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
 
+                        // --- ACTUATOR ENDPOINTS (Health checks) ---
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
                         // --- ALL ENDPOINTS REQUIRE AUTHENTICATION ---
                         // Recommendations are personalized based on user's ratings,
                         // so a valid JWT is always required.

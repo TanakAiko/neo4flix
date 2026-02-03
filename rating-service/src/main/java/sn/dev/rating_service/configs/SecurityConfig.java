@@ -32,6 +32,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
 
+                        // --- ACTUATOR ENDPOINTS (Health checks) ---
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
                         // --- PUBLIC ACCESS ---
                         // Anyone can view the average rating of a movie
                         .requestMatchers(HttpMethod.GET, "/api/ratings/movie/*/average").permitAll()

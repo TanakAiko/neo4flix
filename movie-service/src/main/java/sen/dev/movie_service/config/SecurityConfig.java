@@ -41,6 +41,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
 
+                        // --- ACTUATOR ENDPOINTS (Health checks) ---
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
                         // --- PUBLIC ACCESS (No JWT required) ---
                         // Users can browse the catalog without an account
                         .requestMatchers(HttpMethod.GET, API_MOVIES_TRENDING).permitAll()
