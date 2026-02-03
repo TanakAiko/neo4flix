@@ -1,0 +1,177 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # INFRASTRUCTURE SERVICES
+  # ===========================================
+
+  # Keycloak - Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: neo4flix-keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS:-admin}
+      KC_HEALTH_ENABLED: true
+    command: start-dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      - keycloak-db
+    networks:
+      - neo4flix-network
+
+  # Keycloak PostgreSQL Database
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: neo4flix-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_password
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - neo4flix-network
+
+  # Neo4j - Graph Database
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4flix-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-password}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    networks:
+      - neo4flix-network
+
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: neo4flix-api-gateway
+    environment:
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/neo4flix
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/neo4flix/protocol/openid-connect/certs
+      USER_SERVICE_URL: http://user-service:8081
+      MOVIE_SERVICE_URL: http://movie-service:8082
+      RATING_SERVICE_URL: http://rating-service:8083
+      RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
+      GATEWAY_PORT: 8090
+    ports:
+      - "8090:8090"
+    depends_on:
+      - keycloak
+      - user-service
+      - movie-service
+      - rating-service
+      - recommendation-service
+    networks:
+      - neo4flix-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: neo4flix-user-service
+    environment:
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: ${NEO4J_PASSWORD:-password}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/neo4flix
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/neo4flix/protocol/openid-connect/certs
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS:-admin}
+      KEYCLOAK_ADMIN_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - neo4j
+      - keycloak
+    networks:
+      - neo4flix-network
+
+  # Movie Service
+  movie-service:
+    build:
+      context: ./movie-service
+      dockerfile: Dockerfile
+    container_name: neo4flix-movie-service
+    environment:
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: ${NEO4J_PASSWORD:-password}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/neo4flix
+      TMDB_API_KEY: ${TMDB_API_KEY}
+      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN}
+    ports:
+      - "8082:8082"
+    depends_on:
+      - neo4j
+      - keycloak
+    networks:
+      - neo4flix-network
+
+  # Rating Service
+  rating-service:
+    build:
+      context: ./rating-service
+      dockerfile: Dockerfile
+    container_name: neo4flix-rating-service
+    environment:
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: ${NEO4J_PASSWORD:-password}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/neo4flix
+    ports:
+      - "8083:8083"
+    depends_on:
+      - neo4j
+      - keycloak
+    networks:
+      - neo4flix-network
+
+  # Recommendation Service
+  recommendation-service:
+    build:
+      context: ./recommendation-service
+      dockerfile: Dockerfile
+    container_name: neo4flix-recommendation-service
+    environment:
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: ${NEO4J_PASSWORD:-password}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/neo4flix
+    ports:
+      - "8084:8084"
+    depends_on:
+      - neo4j
+      - keycloak
+    networks:
+      - neo4flix-network
+
+networks:
+  neo4flix-network:
+    driver: bridge
+
+volumes:
+  keycloak-db-data:
+  neo4j-data:
+  neo4j-logs:
