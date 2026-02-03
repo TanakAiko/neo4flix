@@ -1,2 +1,22 @@
 {"properties": [
+  {
+    "name": "gateway.services.user-service",
+    "type": "java.lang.String",
+    "description": "A description for 'gateway.services.user-service'"
+  },
+  {
+    "name": "gateway.services.movie-service",
+    "type": "java.lang.String",
+    "description": "A description for 'gateway.services.movie-service'"
+  },
+  {
+    "name": "gateway.services.rating-service",
+    "type": "java.lang.String",
+    "description": "A description for 'gateway.services.rating-service'"
+  },
+  {
+    "name": "gateway.services.recommendation-service",
+    "type": "java.lang.String",
+    "description": "A description for 'gateway.services.recommendation-service'"
+  }
 ]}
