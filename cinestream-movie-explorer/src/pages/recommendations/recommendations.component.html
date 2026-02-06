@@ -1,0 +1,33 @@
+<div class="min-h-full p-8 pt-24">
+   <!-- Header -->
+   <div class="mb-12 text-center">
+      <h1 class="text-4xl font-bold text-white mb-2">Curated for You</h1>
+      <p class="text-gray-400">Personalized picks based on your viewing history</p>
+   </div>
+
+   <!-- Recommendation Pool Grid -->
+   <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+      @for (item of recommendations(); track item.movie.id) {
+         <a [routerLink]="['/movie', item.movie.id]" class="group relative block aspect-[2/3] rounded-xl overflow-hidden cursor-pointer shadow-lg border border-white/5 bg-[#252b36]">
+            
+            <!-- Poster Image -->
+            <img [ngSrc]="item.movie.poster" width="300" height="450" class="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110 group-hover:opacity-40" alt="{{item.movie.title}}">
+            
+            <!-- Rating Badge (Visible always, fades on hover) -->
+            <div class="absolute top-2 right-2 bg-black/60 backdrop-blur rounded px-2 py-1 text-xs font-bold text-[#00a8c5] transition-opacity group-hover:opacity-0">
+              ★ {{item.movie.rating}}
+            </div>
+
+            <!-- Hover Overlay with Reason -->
+            <div class="absolute inset-0 flex flex-col justify-center items-center p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black/60 backdrop-blur-[2px]">
+               <div class="text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+                  <div class="w-12 h-1 bg-[#00a8c5] rounded-full mx-auto mb-4"></div>
+                  <h3 class="text-white font-bold text-lg leading-tight mb-3">{{item.movie.title}}</h3>
+                  <p class="text-gray-300 text-sm font-medium italic">"{{item.reason}}"</p>
+               </div>
+            </div>
+
+         </a>
+      }
+   </div>
+</div>
