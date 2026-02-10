@@ -1,9 +1,11 @@
 package sen.dev.movie_service.services.impl;
 
+import com.uwetrottmann.tmdb2.DiscoverMovieBuilder;
 import com.uwetrottmann.tmdb2.Tmdb;
 import com.uwetrottmann.tmdb2.entities.Credits;
 import com.uwetrottmann.tmdb2.entities.Genre;
 import com.uwetrottmann.tmdb2.entities.GenreResults;
+import com.uwetrottmann.tmdb2.entities.BaseMovie;
 import com.uwetrottmann.tmdb2.entities.Movie;
 import com.uwetrottmann.tmdb2.entities.MovieResultsPage;
 import com.uwetrottmann.tmdb2.entities.TrendingResultsPage;
@@ -27,11 +29,14 @@ import sen.dev.movie_service.services.TmdbService;
 import sen.dev.movie_service.web.dto.MovieSummaryDTO;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -158,6 +163,32 @@ public class TmdbServiceImpl implements TmdbService {
         }
 
         return Utils.mapToMovieSummaryDTOList(response.body().results, this::resolveGenreNames);
+    }
+
+    @Override
+    public List<MovieSummaryDTO> fetchRandomMovies(int count) throws IOException {
+        // Pick a random page (1–500) from TMDB's discover endpoint for variety
+        int randomPage = ThreadLocalRandom.current().nextInt(1, 501);
+
+        Response<MovieResultsPage> response = new DiscoverMovieBuilder(tmdb.discoverService())
+                .language("en-US")
+                .sort_by(com.uwetrottmann.tmdb2.enumerations.SortBy.POPULARITY_DESC)
+                .vote_count_gte(50)
+                .page(randomPage)
+                .build()
+                .execute();
+
+        if (!response.isSuccessful() || response.body() == null || response.body().results == null) {
+            return List.of();
+        }
+
+        List<BaseMovie> results = new ArrayList<>(response.body().results);
+        Collections.shuffle(results);
+
+        return results.stream()
+                .limit(count)
+                .map(movie -> Utils.mapToMovieSummaryDTO(movie, this::resolveGenreNames))
+                .collect(Collectors.toList());
     }
 
     private MovieEntity mapToEntity(Movie tmdbMovie, Credits credits) {

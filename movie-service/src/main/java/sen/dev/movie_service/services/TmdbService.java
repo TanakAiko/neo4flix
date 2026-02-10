@@ -22,4 +22,7 @@ public interface TmdbService {
 
     // Recommendations: Similar Movies
     List<MovieSummaryDTO> fetchSimilarMovies(Integer tmdbId) throws IOException;
+
+    // Discovery: Random Movies
+    List<MovieSummaryDTO> fetchRandomMovies(int count) throws IOException;
 }

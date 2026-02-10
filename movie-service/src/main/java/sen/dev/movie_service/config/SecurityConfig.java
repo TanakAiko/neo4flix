@@ -28,6 +28,7 @@ public class SecurityConfig {
     // API endpoint constants
     private static final String API_MOVIES_TRENDING = "/api/movies/trending";
     private static final String API_MOVIES_POPULAR = "/api/movies/popular";
+    private static final String API_MOVIES_RANDOM = "/api/movies/random";
     private static final String API_MOVIES_SEARCH = "/api/movies/search";
     private static final String API_MOVIES_BY_ID = "/api/movies/{tmdbId}";
     private static final String API_MOVIES_SIMILAR = "/api/movies/{tmdbId}/similar";
@@ -48,6 +49,7 @@ public class SecurityConfig {
                         // Users can browse the catalog without an account
                         .requestMatchers(HttpMethod.GET, API_MOVIES_TRENDING).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_POPULAR).permitAll()
+                        .requestMatchers(HttpMethod.GET, API_MOVIES_RANDOM).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_SEARCH).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_BY_ID).permitAll()
                         .requestMatchers(HttpMethod.GET, API_MOVIES_SIMILAR).permitAll()

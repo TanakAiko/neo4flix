@@ -455,6 +455,7 @@ public class PersonDTO {
 |--------|----------|------|----------|-------------|
 | `GET` | `/trending` | ❌ | `List<MovieSummaryDTO>` | Get trending movies today |
 | `GET` | `/popular` | ❌ | `List<MovieSummaryDTO>` | Get all-time popular movies |
+| `GET` | `/random?count={n}` | ❌ | `List<MovieSummaryDTO>` | Get random movies (default 10, max 20) |
 | `GET` | `/search?title={query}` | ❌ | `List<MovieSummaryDTO>` | Search movies by title |
 | `GET` | `/{tmdbId}` | ❌ | `MovieDetailsDTO` | Get full movie details |
 | `GET` | `/{tmdbId}/similar` | ❌ | `List<MovieSummaryDTO>` | Get similar movies |

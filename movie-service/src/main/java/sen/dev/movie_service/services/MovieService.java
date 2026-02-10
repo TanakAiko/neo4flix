@@ -19,6 +19,8 @@ public interface MovieService {
 
     List<MovieSummaryDTO> getSimilarMovies(Integer tmdbId);
 
+    List<MovieSummaryDTO> getRandomMovies(int count);
+
     // --- DETAILS (Lazy Loading) ---
     // This method checks the DB first.
     // If missing, it asks TmdbService to build the Entity, saves it to DB,

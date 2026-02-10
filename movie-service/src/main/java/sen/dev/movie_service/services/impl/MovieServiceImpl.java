@@ -69,6 +69,16 @@ public class MovieServiceImpl implements MovieService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<MovieSummaryDTO> getRandomMovies(int count) {
+        try {
+            return tmdbService.fetchRandomMovies(count);
+        } catch (Exception e) {
+            throw new InternalServerErrorException("Failed to fetch random movies: " + e.getMessage());
+        }
+    }
+
     // --- 2. DETAILS (Lazy Loading) ---
 
     @Override

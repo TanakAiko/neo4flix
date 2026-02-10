@@ -32,6 +32,13 @@ public class MovieControllerImpl implements MovieController {
     }
 
     @Override
+    public ResponseEntity<List<MovieSummaryDTO>> getRandomMovies(int count) {
+        int safeCount = Math.min(Math.max(count, 1), 20);
+        List<MovieSummaryDTO> randomMovies = movieService.getRandomMovies(safeCount);
+        return ResponseEntity.ok(randomMovies);
+    }
+
+    @Override
     public ResponseEntity<List<MovieSummaryDTO>> searchMovies(String title) {
         List<MovieSummaryDTO> searchResults = movieService.searchMovies(title);
         return ResponseEntity.ok(searchResults);

@@ -24,6 +24,9 @@ public interface MovieController {
     @GetMapping("/popular")
     ResponseEntity<List<MovieSummaryDTO>> getPopular();
 
+    @GetMapping("/random")
+    ResponseEntity<List<MovieSummaryDTO>> getRandomMovies(@RequestParam(defaultValue = "10") int count);
+
     @GetMapping("/search")
     ResponseEntity<List<MovieSummaryDTO>> searchMovies(@RequestParam String title);
 
