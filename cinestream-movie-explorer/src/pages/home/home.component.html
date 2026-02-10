@@ -133,6 +133,7 @@
       @for (movie of trendingMovies(); track movie.tmdbId) {
         <a [routerLink]="['/movie', movie.tmdbId]" 
            (mouseenter)="setHeroMovie(movie)"
+           (mouseleave)="resumeHeroRotation()"
            class="block min-w-[200px] w-[220px] group cursor-pointer snap-start relative">
            
           <div class="absolute top-2 left-2 z-10 bg-black/60 backdrop-blur-md border border-white/10 text-[#00a8c5] text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1 shadow-lg">
@@ -176,6 +177,7 @@
       @for (movie of topRatedMovies(); track movie.tmdbId) {
         <a [routerLink]="['/movie', movie.tmdbId]" 
            (mouseenter)="setHeroMovie(movie)"
+           (mouseleave)="resumeHeroRotation()"
            class="block min-w-[200px] w-[220px] group cursor-pointer snap-start relative">
           <div class="absolute top-2 left-2 z-10 bg-black/60 backdrop-blur-md border border-white/10 text-[#00a8c5] text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1 shadow-lg">
             <span class="text-yellow-400">★</span> {{movie.rating.toFixed(1)}}

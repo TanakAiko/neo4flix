@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MovieService, MovieSummary } from '../../services/movie.service';
@@ -27,7 +27,7 @@ interface MovieDisplayItem {
   styleUrl: './home.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
@@ -41,6 +41,15 @@ export class HomeComponent implements OnInit {
   
   /** Currently displayed hero movie */
   readonly heroMovie = signal<MovieDisplayItem | null>(null);
+
+  /** Index of the current hero movie in trending list */
+  private heroIndex = 0;
+
+  /** Interval ID for auto-rotation */
+  private heroIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  /** Whether auto-rotation is paused (e.g. on hover) */
+  private heroPaused = false;
   
   /** Loading state */
   readonly isLoading = this.movieService.isLoading;
@@ -83,6 +92,8 @@ export class HomeComponent implements OnInit {
         // Set hero movie to first trending movie
         if (trending.length > 0) {
           this.heroMovie.set(this.toDisplayItem(trending[0]));
+          this.heroIndex = 0;
+          this.startHeroRotation();
         }
       }
     });
@@ -93,13 +104,30 @@ export class HomeComponent implements OnInit {
     }
   }
 
+  ngOnDestroy(): void {
+    this.stopHeroRotation();
+  }
+
   // -------------------------------------------------------------------------
   // Public Methods
   // -------------------------------------------------------------------------
   
-  /** Update Hero section on hover */
+  /** Update Hero section on hover and pause auto-rotation */
   setHeroMovie(movie: MovieDisplayItem): void {
     this.heroMovie.set(movie);
+    this.heroPaused = true;
+
+    // Find the index of the hovered movie in trending so rotation continues from there
+    const trending = this.trendingMovies();
+    const idx = trending.findIndex(m => m.tmdbId === movie.tmdbId);
+    if (idx !== -1) {
+      this.heroIndex = idx;
+    }
+  }
+
+  /** Resume auto-rotation when mouse leaves a movie card */
+  resumeHeroRotation(): void {
+    this.heroPaused = false;
   }
 
   /** Toggle watchlist for a movie */
@@ -124,6 +152,28 @@ export class HomeComponent implements OnInit {
   // Private Methods
   // -------------------------------------------------------------------------
   
+  /** Start auto-rotating hero movie every 5 seconds */
+  private startHeroRotation(): void {
+    this.stopHeroRotation();
+    this.heroIntervalId = setInterval(() => {
+      if (this.heroPaused) return;
+
+      const trending = this.trendingMovies();
+      if (trending.length === 0) return;
+
+      this.heroIndex = (this.heroIndex + 1) % trending.length;
+      this.heroMovie.set(trending[this.heroIndex]);
+    }, 5000);
+  }
+
+  /** Stop the hero rotation interval */
+  private stopHeroRotation(): void {
+    if (this.heroIntervalId !== null) {
+      clearInterval(this.heroIntervalId);
+      this.heroIntervalId = null;
+    }
+  }
+
   /** Convert MovieSummary to display format */
   private toDisplayItem(movie: MovieSummary): MovieDisplayItem {
     return {
