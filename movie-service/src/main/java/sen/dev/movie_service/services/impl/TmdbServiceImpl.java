@@ -127,6 +127,7 @@ public class TmdbServiceImpl implements TmdbService {
                 .overview(tmdbMovie.overview)
                 .releaseDate(Utils.convertToLocalDate(tmdbMovie.release_date))
                 .posterPath(tmdbMovie.poster_path)
+                .backdropPath(tmdbMovie.backdrop_path)
                 .voteAverage(tmdbMovie.vote_average);
 
         // --- Map Genres ---

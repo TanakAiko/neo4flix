@@ -3,6 +3,7 @@ package sn.dev.rating_service.web.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,4 +22,7 @@ public class RatingRequestDTO {
     @Min(value = 1, message = "Score must be at least 1")
     @Max(value = 5, message = "Score must be at most 5")
     private Integer score;
+
+    @Size(max = 500, message = "Comment must be at most 500 characters")
+    private String comment; // Optional review comment
 }

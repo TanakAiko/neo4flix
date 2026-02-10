@@ -14,6 +14,7 @@ public class MovieSummaryDTO {
     private String title;
     private String overview;
     private String posterPath;
+    private String backdropPath;
     private Double voteAverage;
     private Integer releaseYear;
 }

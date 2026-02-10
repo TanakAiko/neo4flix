@@ -18,6 +18,7 @@ public class MovieDetailsDTO {
     private String overview;
     private LocalDate releaseDate;
     private String posterPath;
+    private String backdropPath;
     private Double voteAverage;
 
     private List<String> genres;

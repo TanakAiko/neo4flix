@@ -35,6 +35,7 @@ public class Utils {
                 .title(tmdbMovie.title)
                 .overview(tmdbMovie.overview)
                 .posterPath(tmdbMovie.poster_path)
+                .backdropPath(tmdbMovie.backdrop_path)
                 .voteAverage(tmdbMovie.vote_average)
                 .releaseYear(extractYear(tmdbMovie.release_date))
                 .build();

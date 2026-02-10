@@ -20,6 +20,7 @@ public class UserRatingDTO {
 
     // The Rating
     private Integer score;
+    private String comment;
 
     // When they rated it
     private LocalDateTime ratedDate;

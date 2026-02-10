@@ -410,6 +410,7 @@ public class MovieSummaryDTO {
     private String title;
     private String overview;
     private String posterPath;      // TMDB image path (e.g., "/abc123.jpg")
+    private String backdropPath;    // TMDB backdrop image path for background
     private Double voteAverage;
     private Integer releaseYear;
 }
@@ -424,6 +425,7 @@ public class MovieDetailsDTO {
     private String overview;
     private LocalDate releaseDate;
     private String posterPath;
+    private String backdropPath;    // TMDB backdrop image path for background
     private Double voteAverage;
     
     private List<String> genres;         // ["Action", "Sci-Fi"]
@@ -489,6 +491,9 @@ public class MovieEntity {
     
     @Property("posterPath")
     private String posterPath;
+    
+    @Property("backdropPath")
+    private String backdropPath;
     
     @Property("voteAverage")
     private Double voteAverage;
@@ -583,6 +588,9 @@ public class RatingRequestDTO {
     @NotNull
     @Min(1) @Max(5)
     private Integer score;
+
+    @Size(max = 500)
+    private String comment;  // Optional review comment
 }
 ```
 
@@ -594,6 +602,7 @@ public class UserRatingDTO {
     private String title;
     private String posterPath;
     private Integer score;
+    private String comment;
     private LocalDateTime ratedDate;
 }
 ```
@@ -617,7 +626,7 @@ public class UserRatingDTO {
 Ratings are stored as **RATED relationships** between User and Movie nodes:
 
 ```cypher
-(:User)-[:RATED {score: 4, timestamp: datetime()}]->(:Movie)
+(:User)-[:RATED {score: 4, comment: "Great movie!", timestamp: datetime()}]->(:Movie)
 ```
 
 The Rating Service uses `Neo4jClient` directly instead of a repository pattern because `RATED` is a relationship, not a node entity.
@@ -762,7 +771,7 @@ Shared recommendations are stored as relationships:
 | Relationship | From | To | Properties |
 |--------------|------|-----|------------|
 | `FOLLOWS` | User | User | - |
-| `RATED` | User | Movie | `score` (Int), `timestamp` (DateTime) |
+| `RATED` | User | Movie | `score` (Int), `comment` (String), `timestamp` (DateTime) |
 | `IN_WATCHLIST` | User | Movie | - |
 | `IN_GENRE` | Movie | Genre | - |
 | `DIRECTED` | Person | Movie | - |
@@ -908,9 +917,13 @@ curl http://localhost:8085/actuator/health
 
 ### TMDB Image URLs
 
-Poster images returned by the API need the TMDB base URL:
+Poster and backdrop images returned by the API need the TMDB base URL:
 ```typescript
+// Poster image (for cards, lists)
 const posterUrl = `https://image.tmdb.org/t/p/w500${movie.posterPath}`;
+
+// Backdrop image (for hero banners, detail page backgrounds)
+const backdropUrl = `https://image.tmdb.org/t/p/original${movie.backdropPath}`;
 ```
 
 ### Error Handling

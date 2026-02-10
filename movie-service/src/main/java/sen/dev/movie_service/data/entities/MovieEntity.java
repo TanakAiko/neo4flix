@@ -45,6 +45,9 @@ public class MovieEntity {
     @Property("posterPath")
     private String posterPath;
 
+    @Property("backdropPath")
+    private String backdropPath;
+
     @Property("voteAverage")
     private Double voteAverage;
 
@@ -70,6 +73,7 @@ public class MovieEntity {
                 .title(this.getTitle())
                 .overview(this.getOverview())
                 .posterPath(this.getPosterPath())
+                .backdropPath(this.getBackdropPath())
                 .voteAverage(this.getVoteAverage())
                 .releaseYear(this.getReleaseDate() != null ? this.getReleaseDate().getYear() : null)
                 .build();
@@ -101,6 +105,7 @@ public class MovieEntity {
                 .overview(this.getOverview())
                 .releaseDate(this.getReleaseDate())
                 .posterPath(this.getPosterPath())
+                .backdropPath(this.getBackdropPath())
                 .voteAverage(this.getVoteAverage())
                 .genres(genreNames)
                 .directors(directorDTOs)

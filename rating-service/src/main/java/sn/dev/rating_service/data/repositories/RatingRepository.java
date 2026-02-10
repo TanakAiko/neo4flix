@@ -35,16 +35,17 @@ public class RatingRepository {
      * 
      * Returns the tmdbId if successful, or empty if the Movie doesn't exist in DB.
      */
-    public Optional<Integer> rateMovie(String userId, Integer tmdbId, int score) {
+    public Optional<Integer> rateMovie(String userId, Integer tmdbId, int score, String comment) {
         return neo4jClient.query(
                 "MATCH (u:User {keycloakId: $userId}) " +
                 "MATCH (m:Movie {tmdbId: $tmdbId}) " +
                 "MERGE (u)-[r:RATED]->(m) " +
-                "SET r.score = $score, r.timestamp = datetime() " +
+                "SET r.score = $score, r.comment = $comment, r.timestamp = datetime() " +
                 "RETURN m.tmdbId")
             .bind(userId).to("userId")
             .bind(tmdbId).to("tmdbId")
             .bind(score).to("score")
+            .bind(comment).to("comment")
             .fetchAs(Integer.class)
             .one();
     }
@@ -79,6 +80,7 @@ public class RatingRepository {
                 "       m.title AS title, " +
                 "       m.posterPath AS posterPath, " +
                 "       r.score AS score, " +
+                "       r.comment AS comment, " +
                 "       r.timestamp AS ratedDate " +
                 "ORDER BY r.timestamp DESC")
             .bind(userId).to("userId")

@@ -30,7 +30,7 @@ public class RatingServiceImpl implements RatingService {
 
         // Call the repository Cypher query
         // It returns the tmdbId if successful, or empty if the movie node wasn't found
-        ratingRepository.rateMovie(userId, request.getTmdbId(), request.getScore())
+        ratingRepository.rateMovie(userId, request.getTmdbId(), request.getScore(), request.getComment())
             .orElseThrow(() -> new NotFoundException("Movie with ID " + request.getTmdbId() +
                     " not found. Please ensure the movie exists in the system before rating."));
     }
@@ -77,6 +77,7 @@ public class RatingServiceImpl implements RatingService {
                 .title((String) map.get("title"))
                 .posterPath((String) map.get("posterPath"))
                 .score(toInteger(map.get("score")))
+                .comment((String) map.get("comment"))
                 .ratedDate(convertOffsetToLocal(map.get("ratedDate")))
                 .build();
     }
