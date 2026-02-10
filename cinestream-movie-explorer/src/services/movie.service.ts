@@ -84,10 +84,10 @@ const POSTER_SIZE = environment.tmdbPosterSize;
 const BACKDROP_SIZE = environment.tmdbBackdropSize;
 const PROFILE_SIZE = environment.tmdbProfileSize;
 
-// Placeholder images
-const PLACEHOLDER_POSTER = 'https://via.placeholder.com/500x750/1a1f26/666666?text=No+Poster';
-const PLACEHOLDER_BACKDROP = 'https://via.placeholder.com/1280x720/1a1f26/666666?text=No+Backdrop';
-const PLACEHOLDER_PROFILE = 'https://via.placeholder.com/185x278/1a1f26/666666?text=No+Photo';
+// Placeholder images (inline SVG data URIs — no external dependency)
+const PLACEHOLDER_POSTER = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect fill="%231a1f26" width="500" height="750"/><text fill="%23666" font-family="sans-serif" font-size="24" text-anchor="middle" x="250" y="375">No Poster</text></svg>')}`;
+const PLACEHOLDER_BACKDROP = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect fill="%231a1f26" width="1280" height="720"/><text fill="%23666" font-family="sans-serif" font-size="32" text-anchor="middle" x="640" y="360">No Backdrop</text></svg>')}`;
+const PLACEHOLDER_PROFILE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="185" height="278" viewBox="0 0 185 278"><rect fill="%231a1f26" width="185" height="278"/><text fill="%23666" font-family="sans-serif" font-size="16" text-anchor="middle" x="92" y="139">No Photo</text></svg>')}`;
 
 // ============================================================================
 // MOVIE SERVICE

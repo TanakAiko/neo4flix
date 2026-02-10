@@ -64,7 +64,7 @@ const API_BASE_URL = environment.apiBaseUrl;
 const TMDB_IMAGE_BASE_URL = environment.tmdbImageBaseUrl;
 const POSTER_SIZE = environment.tmdbPosterSize;
 
-const PLACEHOLDER_POSTER = 'https://via.placeholder.com/500x750/1a1f26/666666?text=No+Poster';
+const PLACEHOLDER_POSTER = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750"><rect fill="%231a1f26" width="500" height="750"/><text fill="%23666" font-family="sans-serif" font-size="24" text-anchor="middle" x="250" y="375">No Poster</text></svg>')}`;
 
 // ============================================================================
 // RECOMMENDATION SERVICE
