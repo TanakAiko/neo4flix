@@ -14,12 +14,12 @@
     <!-- Top Navigation Bar -->
     <div class="absolute top-0 left-0 right-0 z-40 p-6 flex justify-between items-center bg-gradient-to-b from-[#1a1f26]/90 to-transparent">
       <!-- Back Button -->
-      <a routerLink="/" class="flex items-center gap-2 text-white/80 hover:text-white transition-colors group flex-shrink-0">
+      <button (click)="goBack()" class="flex items-center gap-2 text-white/80 hover:text-white transition-colors group flex-shrink-0 cursor-pointer bg-transparent border-none">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:-translate-x-1 transition-transform">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
         </svg>
         <span class="font-semibold">Back</span>
-      </a>
+      </button>
 
       <!-- Search Bar -->
       <div class="glass-panel rounded-full px-4 h-11 flex items-center w-full max-w-xs md:max-w-md mx-4 transition-all duration-300 hover:scale-105 focus-within:scale-105 hover:shadow-[0_0_15px_rgba(0,168,197,0.4)] hover:border-[#00a8c5]/50 group">

@@ -1,5 +1,5 @@
 import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink, ParamMap } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MovieService, MovieSummary } from '../../services/movie.service';
@@ -25,6 +25,7 @@ export class MovieDetailComponent implements OnInit {
   // -------------------------------------------------------------------------
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
   readonly movieService = inject(MovieService);
   readonly authService = inject(AuthService);
   readonly watchlistService = inject(WatchlistService);
@@ -98,6 +99,11 @@ export class MovieDetailComponent implements OnInit {
   // -------------------------------------------------------------------------
   // Public Methods
   // -------------------------------------------------------------------------
+
+  /** Navigate back to the previous page */
+  goBack(): void {
+    this.location.back();
+  }
 
   /** Navigate to browse page with search query */
   navigateToSearch(query: string): void {
