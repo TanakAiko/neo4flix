@@ -68,6 +68,10 @@ public class MovieEntity {
     private Set<PersonEntity> cast;
 
     public MovieSummaryDTO mapToSummaryDTO() {
+        List<String> genreNames = this.getGenres() != null
+                ? this.getGenres().stream().map(GenreEntity::getName).collect(Collectors.toList())
+                : List.of();
+
         return MovieSummaryDTO.builder()
                 .tmdbId(this.getTmdbId())
                 .title(this.getTitle())
@@ -76,6 +80,7 @@ public class MovieEntity {
                 .backdropPath(this.getBackdropPath())
                 .voteAverage(this.getVoteAverage())
                 .releaseYear(this.getReleaseDate() != null ? this.getReleaseDate().getYear() : null)
+                .genres(genreNames)
                 .build();
     }
 

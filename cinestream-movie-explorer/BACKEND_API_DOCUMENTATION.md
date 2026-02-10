@@ -413,6 +413,7 @@ public class MovieSummaryDTO {
     private String backdropPath;    // TMDB backdrop image path for background
     private Double voteAverage;
     private Integer releaseYear;
+    private List<String> genres;    // ["Action", "Sci-Fi"]
 }
 ```
 

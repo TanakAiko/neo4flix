@@ -1,5 +1,7 @@
 package sen.dev.movie_service.web.dto;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,4 +19,5 @@ public class MovieSummaryDTO {
     private String backdropPath;
     private Double voteAverage;
     private Integer releaseYear;
+    private List<String> genres;
 }

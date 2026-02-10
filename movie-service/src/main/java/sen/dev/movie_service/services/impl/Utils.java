@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.uwetrottmann.tmdb2.entities.BaseMovie;
@@ -13,23 +14,22 @@ import sen.dev.movie_service.web.dto.MovieSummaryDTO;
 
 public class Utils {
 
-    public static List<MovieSummaryDTO> mapToMovieSummaryDTOListTrending(List<Trending> trendings) {
+    public static List<MovieSummaryDTO> mapToMovieSummaryDTOListTrending(
+            List<Trending> trendings, Function<List<Integer>, List<String>> genreResolver) {
         return trendings.stream()
-                .map(Utils::mapToMovieSummaryDTOTending)
+                .map(t -> mapToMovieSummaryDTO(t.movie, genreResolver))
                 .collect(Collectors.toList());
     }
 
-    public static List<MovieSummaryDTO> mapToMovieSummaryDTOList(List<BaseMovie> movies) {
+    public static List<MovieSummaryDTO> mapToMovieSummaryDTOList(
+            List<BaseMovie> movies, Function<List<Integer>, List<String>> genreResolver) {
         return movies.stream()
-                .map(Utils::mapToMovieSummaryDTO)
+                .map(m -> mapToMovieSummaryDTO(m, genreResolver))
                 .collect(Collectors.toList());
     }
 
-    private static MovieSummaryDTO mapToMovieSummaryDTOTending(Trending tmdbMovie) {
-        return mapToMovieSummaryDTO(tmdbMovie.movie);
-    }
-
-    public static MovieSummaryDTO mapToMovieSummaryDTO(BaseMovie tmdbMovie) {
+    public static MovieSummaryDTO mapToMovieSummaryDTO(
+            BaseMovie tmdbMovie, Function<List<Integer>, List<String>> genreResolver) {
         return MovieSummaryDTO.builder()
                 .tmdbId(tmdbMovie.id)
                 .title(tmdbMovie.title)
@@ -38,6 +38,7 @@ public class Utils {
                 .backdropPath(tmdbMovie.backdrop_path)
                 .voteAverage(tmdbMovie.vote_average)
                 .releaseYear(extractYear(tmdbMovie.release_date))
+                .genres(genreResolver.apply(tmdbMovie.genre_ids))
                 .build();
     }
 

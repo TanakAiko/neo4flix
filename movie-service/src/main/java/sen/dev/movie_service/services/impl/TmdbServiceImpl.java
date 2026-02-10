@@ -3,6 +3,7 @@ package sen.dev.movie_service.services.impl;
 import com.uwetrottmann.tmdb2.Tmdb;
 import com.uwetrottmann.tmdb2.entities.Credits;
 import com.uwetrottmann.tmdb2.entities.Genre;
+import com.uwetrottmann.tmdb2.entities.GenreResults;
 import com.uwetrottmann.tmdb2.entities.Movie;
 import com.uwetrottmann.tmdb2.entities.MovieResultsPage;
 import com.uwetrottmann.tmdb2.entities.TrendingResultsPage;
@@ -10,6 +11,8 @@ import com.uwetrottmann.tmdb2.enumerations.MediaType;
 import com.uwetrottmann.tmdb2.enumerations.TimeWindow;
 import com.uwetrottmann.tmdb2.services.MoviesService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,15 +29,22 @@ import sen.dev.movie_service.web.dto.MovieSummaryDTO;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 public class TmdbServiceImpl implements TmdbService {
 
+    private static final Logger log = LoggerFactory.getLogger(TmdbServiceImpl.class);
+
     private final Tmdb tmdb;
     private final GenreRepository genreRepository;
     private final PersonRepository personRepository;
+
+    /** Lazy-loaded cache: TMDB genre ID → genre name. */
+    private final Map<Integer, String> genreCache = new ConcurrentHashMap<>();
 
     public TmdbServiceImpl(@Value("${tmdb.api.key}") String tmdbApiKey,
             GenreRepository genreRepository,
@@ -42,6 +52,36 @@ public class TmdbServiceImpl implements TmdbService {
         this.tmdb = new Tmdb(tmdbApiKey);
         this.genreRepository = genreRepository;
         this.personRepository = personRepository;
+    }
+
+    /**
+     * Returns genre names for the given TMDB genre IDs.
+     * The genre map is fetched once from TMDB and cached in memory.
+     */
+    public List<String> resolveGenreNames(List<Integer> genreIds) {
+        if (genreIds == null || genreIds.isEmpty()) {
+            return List.of();
+        }
+        ensureGenreCacheLoaded();
+        return genreIds.stream()
+                .map(id -> genreCache.getOrDefault(id, "Unknown"))
+                .collect(Collectors.toList());
+    }
+
+    private void ensureGenreCacheLoaded() {
+        if (!genreCache.isEmpty()) {
+            return;
+        }
+        try {
+            Response<GenreResults> response = tmdb.genreService().movie("en-US").execute();
+            if (response.isSuccessful() && response.body() != null && response.body().genres != null) {
+                for (Genre g : response.body().genres) {
+                    genreCache.put(g.id, g.name);
+                }
+            }
+        } catch (IOException e) {
+            log.warn("Failed to load TMDB genre list: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -55,7 +95,7 @@ public class TmdbServiceImpl implements TmdbService {
             throw new RuntimeException("Failed to fetch trending movies from TMDB");
         }
 
-        return Utils.mapToMovieSummaryDTOListTrending(response.body().results);
+        return Utils.mapToMovieSummaryDTOListTrending(response.body().results, this::resolveGenreNames);
 
     }
 
@@ -70,7 +110,7 @@ public class TmdbServiceImpl implements TmdbService {
             throw new RuntimeException("Failed to fetch all-time popular movies from TMDB");
         }
 
-        return Utils.mapToMovieSummaryDTOList(response.body().results);
+        return Utils.mapToMovieSummaryDTOList(response.body().results, this::resolveGenreNames);
     }
 
     @Override
@@ -83,7 +123,7 @@ public class TmdbServiceImpl implements TmdbService {
             throw new RuntimeException("Failed to search movies from TMDB");
         }
 
-        return Utils.mapToMovieSummaryDTOList(response.body().results);
+        return Utils.mapToMovieSummaryDTOList(response.body().results, this::resolveGenreNames);
     }
 
     @Override
@@ -117,7 +157,7 @@ public class TmdbServiceImpl implements TmdbService {
             return List.of();
         }
 
-        return Utils.mapToMovieSummaryDTOList(response.body().results);
+        return Utils.mapToMovieSummaryDTOList(response.body().results, this::resolveGenreNames);
     }
 
     private MovieEntity mapToEntity(Movie tmdbMovie, Credits credits) {
