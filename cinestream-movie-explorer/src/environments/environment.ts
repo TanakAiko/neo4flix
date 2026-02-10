@@ -7,7 +7,9 @@ export const environment = {
   production: false,
   
   // API Configuration
-  apiBaseUrl: 'http://localhost:8085',
+  // In development, requests to /api are proxied to localhost:8085 via proxy.conf.json
+  // This avoids CORS issues since requests go through the same origin
+  apiBaseUrl: '',
   
   // TMDB Image Configuration
   tmdbImageBaseUrl: 'https://image.tmdb.org/t/p',

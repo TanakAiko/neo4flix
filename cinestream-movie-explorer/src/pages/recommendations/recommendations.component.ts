@@ -1,5 +1,5 @@
 import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { RecommendationService, RecommendationDisplay, SharedRecommendation } from '../../services/recommendation.service';
 import { MovieService } from '../../services/movie.service';
@@ -8,7 +8,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-recommendations',
   standalone: true,
-  imports: [CommonModule, RouterLink, NgOptimizedImage],
+  imports: [CommonModule, RouterLink],
   templateUrl: './recommendations.component.html',
   styleUrl: './recommendations.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush

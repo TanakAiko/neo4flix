@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MovieService, MovieSummary } from '../../services/movie.service';
@@ -19,7 +19,7 @@ interface MovieDisplayItem {
 @Component({
   selector: 'app-browse',
   standalone: true,
-  imports: [CommonModule, RouterLink, NgOptimizedImage, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './browse.component.html',
   styleUrl: './browse.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush

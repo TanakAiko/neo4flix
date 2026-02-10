@@ -1,5 +1,5 @@
 import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, ParamMap } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MovieService, MovieSummary } from '../../services/movie.service';
@@ -14,7 +14,7 @@ import { map, switchMap, filter } from 'rxjs/operators';
 @Component({
   selector: 'app-movie-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, NgOptimizedImage, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './movie-detail.component.html',
   styleUrl: './movie-detail.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush

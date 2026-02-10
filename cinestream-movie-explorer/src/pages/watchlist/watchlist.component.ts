@@ -1,5 +1,5 @@
 import { Component, inject, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { WatchlistService } from '../../services/watchlist.service';
 import { MovieService, MovieSummary } from '../../services/movie.service';
@@ -16,7 +16,7 @@ interface WatchlistDisplayItem {
 @Component({
   selector: 'app-watchlist',
   standalone: true,
-  imports: [CommonModule, RouterLink, NgOptimizedImage],
+  imports: [CommonModule, RouterLink],
   templateUrl: './watchlist.component.html',
   styleUrl: './watchlist.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
