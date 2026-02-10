@@ -1,6 +1,6 @@
 import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink, ParamMap } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, ParamMap } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MovieService, MovieSummary } from '../../services/movie.service';
 import { WatchlistService } from '../../services/watchlist.service';
@@ -24,6 +24,7 @@ export class MovieDetailComponent implements OnInit {
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   readonly movieService = inject(MovieService);
   readonly authService = inject(AuthService);
   readonly watchlistService = inject(WatchlistService);
@@ -97,6 +98,14 @@ export class MovieDetailComponent implements OnInit {
   // -------------------------------------------------------------------------
   // Public Methods
   // -------------------------------------------------------------------------
+
+  /** Navigate to browse page with search query */
+  navigateToSearch(query: string): void {
+    const trimmed = query.trim();
+    if (trimmed) {
+      this.router.navigate(['/browse'], { queryParams: { q: trimmed } });
+    }
+  }
   
   /** Get poster URL for similar movies */
   getSimilarPosterUrl(movie: MovieSummary): string {

@@ -1,10 +1,10 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MovieService, MovieSummary } from '../../services/movie.service';
 import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { Subject, of, Subscription } from 'rxjs';
 
 interface MovieDisplayItem {
   tmdbId: number;
@@ -24,11 +24,12 @@ interface MovieDisplayItem {
   styleUrl: './browse.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BrowseComponent implements OnInit {
+export class BrowseComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   private readonly movieService = inject(MovieService);
+  private readonly route = inject(ActivatedRoute);
   
   // -------------------------------------------------------------------------
   // State Management with Signals
@@ -45,6 +46,7 @@ export class BrowseComponent implements OnInit {
 
   // Search debounce
   private readonly searchSubject = new Subject<string>();
+  private searchSubscription?: Subscription;
 
   // Loading state
   readonly isLoading = this.movieService.isLoading;
@@ -113,16 +115,30 @@ export class BrowseComponent implements OnInit {
     this.movieService.fetchAllMovies().subscribe();
 
     // Set up search debounce
-    this.searchSubject.pipe(
+    this.searchSubscription = this.searchSubject.pipe(
       debounceTime(300),
       distinctUntilChanged(),
       switchMap(query => {
         if (query.trim()) {
           return this.movieService.searchMovies(query);
         }
-        return [];
+        // Clear search results and return empty observable
+        this.movieService.clearSearch();
+        return of([]);
       })
     ).subscribe();
+
+    // Check for search query param (from home/movie-detail search bars)
+    const initialQuery = this.route.snapshot.queryParamMap.get('q');
+    if (initialQuery?.trim()) {
+      this.searchQuery.set(initialQuery.trim());
+      this.searchSubject.next(initialQuery.trim());
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.searchSubscription?.unsubscribe();
+    this.searchSubject.complete();
   }
 
   // -------------------------------------------------------------------------
@@ -162,6 +178,7 @@ export class BrowseComponent implements OnInit {
 
   clearFilters(): void {
     this.searchQuery.set('');
+    this.movieService.clearSearch();
     this.selectedGenres.set([]);
     this.selectedDecade.set('');
     this.minRating.set(0);

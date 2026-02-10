@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MovieService, MovieSummary } from '../../services/movie.service';
 import { AuthService } from '../../services/auth.service';
 import { WatchlistService } from '../../services/watchlist.service';
@@ -34,6 +34,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   readonly movieService = inject(MovieService);
   readonly authService = inject(AuthService);
   readonly watchlistService = inject(WatchlistService);
+  private readonly router = inject(Router);
   
   // -------------------------------------------------------------------------
   // State Management with Signals
@@ -111,6 +112,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
   // Public Methods
   // -------------------------------------------------------------------------
+
+  /** Navigate to browse page with search query */
+  navigateToSearch(query: string): void {
+    const trimmed = query.trim();
+    if (trimmed) {
+      this.router.navigate(['/browse'], { queryParams: { q: trimmed } });
+    }
+  }
   
   /** Update Hero section on hover and pause auto-rotation */
   setHeroMovie(movie: MovieDisplayItem): void {
