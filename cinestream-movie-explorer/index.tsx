@@ -14,10 +14,11 @@ import { authInterceptor } from './src/services/auth.interceptor';
 
 const routes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
-  { path: 'login', component: LoginComponent },
+  { path: 'auth', component: LoginComponent },
+  { path: 'login', redirectTo: 'auth', pathMatch: 'full' }, // Legacy redirect
   { path: 'home', component: HomeComponent },
   { path: 'browse', component: BrowseComponent },
-  { path: 'movie/:id', component: MovieDetailComponent },
+  { path: 'movie/:tmdbId', component: MovieDetailComponent },
   { path: 'recommendations', component: RecommendationsComponent },
   { path: 'watchlist', component: WatchlistComponent },
   { path: 'profile', component: ProfileComponent },

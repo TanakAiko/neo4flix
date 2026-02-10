@@ -9,7 +9,7 @@
         <input 
           type="text" 
           [ngModel]="searchQuery()"
-          (ngModelChange)="searchQuery.set($event)"
+          (ngModelChange)="onSearchChange($event)"
           placeholder="Search for Movie..." 
           class="bg-transparent border-none outline-none text-base text-white w-full placeholder-gray-400 font-light"
         >
@@ -158,19 +158,13 @@
       
       @if (filteredMovies().length > 0) {
         <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-            @for (movie of filteredMovies(); track movie.id) {
-            <a [routerLink]="['/movie', movie.id]" class="group block relative cursor-pointer animate-fade-in">
+            @for (movie of filteredMovies(); track movie.tmdbId) {
+            <a [routerLink]="['/movie', movie.tmdbId]" class="group block relative cursor-pointer animate-fade-in">
                 <div class="relative aspect-[2/3] rounded-2xl overflow-hidden shadow-lg border border-white/5 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[#00a8c5]/20">
-                    <img [ngSrc]="movie.poster" width="300" height="450" class="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110" alt="{{movie.title}}">
+                    <img [src]="movie.poster" class="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110" alt="{{movie.title}}">
                     
                     <!-- Hover Overlay -->
                     <div class="absolute inset-0 bg-black/80 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 p-6 flex flex-col justify-center text-center">
-                    <!-- Genre Pill -->
-                    <div class="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75 mb-3">
-                        <span class="bg-[#00a8c5] text-white text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded">
-                            {{movie.genre[0]}}
-                        </span>
-                    </div>
 
                     <!-- Synopsis -->
                     <p class="text-gray-200 text-sm leading-relaxed line-clamp-6 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-100">
@@ -193,6 +187,11 @@
             </a>
             }
         </div>
+      } @else if (isLoading()) {
+          <div class="flex flex-col items-center justify-center py-20 text-center">
+              <div class="w-16 h-16 border-4 border-[#00a8c5] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p class="text-gray-400">Loading movies...</p>
+          </div>
       } @else {
           <div class="flex flex-col items-center justify-center py-20 text-center">
               <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 text-gray-600">

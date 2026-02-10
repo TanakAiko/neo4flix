@@ -1,12 +1,9 @@
-import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MovieService, Movie } from '../../services/movie.service';
-
-interface RecommendedMovie {
-  movie: Movie;
-  reason: string;
-}
+import { RecommendationService, RecommendationDisplay, SharedRecommendation } from '../../services/recommendation.service';
+import { MovieService } from '../../services/movie.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-recommendations',
@@ -16,32 +13,44 @@ interface RecommendedMovie {
   styleUrl: './recommendations.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RecommendationsComponent {
+export class RecommendationsComponent implements OnInit {
   // -------------------------------------------------------------------------
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
+  private readonly recommendationService = inject(RecommendationService);
   private readonly movieService = inject(MovieService);
+  readonly authService = inject(AuthService);
   
+  // -------------------------------------------------------------------------
+  // State Management with Signals
+  // -------------------------------------------------------------------------
+  readonly activeTab = signal<'personalized' | 'received'>('personalized');
+
   // -------------------------------------------------------------------------
   // Computed Properties
   // -------------------------------------------------------------------------
-  readonly recommendations = computed<RecommendedMovie[]>(() => {
-    const movies = this.movieService.movies();
-    // Simulate recommendation reasons mapping
-    const reasons = [
-      "Because you like deep Sci-Fi worlds",
-      "Matches your taste for high-stakes drama",
-      "Highly rated by users like you",
-      "Directed by a visionary you follow",
-      "Trending in your region",
-      "Similar to 'Inception' which you loved",
-      "Critically acclaimed visual masterpiece",
-      "Featuring actors from your favorite list"
-    ];
+  readonly recommendations = this.recommendationService.recommendationsDisplay;
+  readonly receivedShares = this.recommendationService.receivedShares;
+  readonly isLoading = this.recommendationService.isLoading;
 
-    return movies.map((movie, index) => ({
-      movie,
-      reason: reasons[index % reasons.length]
-    }));
-  });
+  // -------------------------------------------------------------------------
+  // Lifecycle Hooks
+  // -------------------------------------------------------------------------
+  ngOnInit(): void {
+    if (this.authService.isLoggedIn()) {
+      this.recommendationService.fetchRecommendations().subscribe();
+      this.recommendationService.fetchReceivedShares().subscribe();
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Public Methods
+  // -------------------------------------------------------------------------
+  setActiveTab(tab: 'personalized' | 'received'): void {
+    this.activeTab.set(tab);
+  }
+
+  getPosterUrl(posterPath: string | null): string {
+    return this.movieService.getPosterUrl(posterPath);
+  }
 }

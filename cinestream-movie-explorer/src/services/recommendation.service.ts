@@ -1,8 +1,9 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { tap, catchError, finalize } from 'rxjs/operators';
+import { tap, catchError, finalize, map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
+import { NotificationService } from './notification.service';
 
 // ============================================================================
 // INTERFACES - Based on Backend API Documentation
@@ -14,7 +15,7 @@ import { environment } from '../environments/environment';
 export interface Recommendation {
   tmdbId: number;
   title: string;
-  posterPath: string;
+  posterPath: string | null;
   overview: string;
   voteAverage: number;
   releaseYear: number;
@@ -37,14 +38,22 @@ export interface SharedRecommendation {
   // Movie info
   tmdbId: number;
   title: string;
-  posterPath: string;
+  posterPath: string | null;
   overview: string;
   voteAverage: number;
   releaseYear: number;
   // Share info
   fromUsername: string;
+  toUsername: string;
   message: string;
   sharedAt: string;
+}
+
+/**
+ * Recommendation display model with full image URLs
+ */
+export interface RecommendationDisplay extends Recommendation {
+  poster: string;
 }
 
 // ============================================================================
@@ -52,6 +61,10 @@ export interface SharedRecommendation {
 // ============================================================================
 
 const API_BASE_URL = environment.apiBaseUrl;
+const TMDB_IMAGE_BASE_URL = environment.tmdbImageBaseUrl;
+const POSTER_SIZE = environment.tmdbPosterSize;
+
+const PLACEHOLDER_POSTER = 'https://via.placeholder.com/500x750/1a1f26/666666?text=No+Poster';
 
 // ============================================================================
 // RECOMMENDATION SERVICE
@@ -65,6 +78,7 @@ export class RecommendationService {
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   private readonly http = inject(HttpClient);
+  private readonly notificationService = inject(NotificationService);
   private readonly apiUrl = `${API_BASE_URL}/api/recommendations`;
 
   // -------------------------------------------------------------------------
@@ -93,12 +107,20 @@ export class RecommendationService {
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
 
+  // Computed: Recommendations with full image URLs
+  readonly recommendationsDisplay = computed(() => 
+    this._recommendations().map(r => this.toRecommendationDisplay(r))
+  );
+
+  // Computed: Unread received shares count
+  readonly receivedCount = computed(() => this._receivedShares().length);
+
   // -------------------------------------------------------------------------
   // API Methods
   // -------------------------------------------------------------------------
 
   /**
-   * Fetch personalized recommendations based on user's ratings and behavior
+   * Fetch personalized recommendations for the current user
    */
   fetchRecommendations(): Observable<Recommendation[]> {
     this._isLoading.set(true);
@@ -108,7 +130,7 @@ export class RecommendationService {
       tap((recommendations) => this._recommendations.set(recommendations)),
       catchError((error) => {
         this._error.set('Failed to fetch recommendations');
-        console.error('Recommendations error:', error);
+        console.error('Recommendations fetch error:', error);
         return of([]);
       }),
       finalize(() => this._isLoading.set(false))
@@ -122,15 +144,22 @@ export class RecommendationService {
     this._isLoading.set(true);
     this._error.set(null);
 
-    const request: ShareRequest = { tmdbId, recipientUsername, message };
+    const request: ShareRequest = {
+      tmdbId,
+      recipientUsername,
+      message: message || ''
+    };
 
     return this.http.post<void>(`${this.apiUrl}/share`, request).pipe(
       tap(() => {
-        // Refresh sent shares after successful share
+        this.notificationService.success(`Recommendation sent to ${recipientUsername}!`);
+        // Refresh sent shares
         this.fetchSentShares().subscribe();
       }),
       catchError((error) => {
         this._error.set('Failed to share recommendation');
+        this.notificationService.error('Failed to send recommendation');
+        console.error('Share recommendation error:', error);
         throw error;
       }),
       finalize(() => this._isLoading.set(false))
@@ -148,6 +177,7 @@ export class RecommendationService {
       tap((shares) => this._receivedShares.set(shares)),
       catchError((error) => {
         this._error.set('Failed to fetch received recommendations');
+        console.error('Received shares fetch error:', error);
         return of([]);
       }),
       finalize(() => this._isLoading.set(false))
@@ -165,6 +195,7 @@ export class RecommendationService {
       tap((shares) => this._sentShares.set(shares)),
       catchError((error) => {
         this._error.set('Failed to fetch sent recommendations');
+        console.error('Sent shares fetch error:', error);
         return of([]);
       }),
       finalize(() => this._isLoading.set(false))
@@ -176,12 +207,35 @@ export class RecommendationService {
   // -------------------------------------------------------------------------
 
   /**
-   * Clear all recommendation state
+   * Get full poster image URL from TMDB path
    */
-  clearRecommendations(): void {
+  getPosterUrl(path: string | null | undefined): string {
+    if (!path) return PLACEHOLDER_POSTER;
+    return `${TMDB_IMAGE_BASE_URL}/${POSTER_SIZE}${path}`;
+  }
+
+  /**
+   * Convert Recommendation to RecommendationDisplay
+   */
+  private toRecommendationDisplay(rec: Recommendation): RecommendationDisplay {
+    return {
+      ...rec,
+      poster: this.getPosterUrl(rec.posterPath),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // State Management Methods
+  // -------------------------------------------------------------------------
+
+  /**
+   * Clear all recommendation state (e.g., on logout)
+   */
+  clearAll(): void {
     this._recommendations.set([]);
     this._receivedShares.set([]);
     this._sentShares.set([]);
+    this._error.set(null);
   }
 
   /**
@@ -189,13 +243,5 @@ export class RecommendationService {
    */
   clearError(): void {
     this._error.set(null);
-  }
-
-  /**
-   * Get count of unread received recommendations
-   * Note: This is a placeholder - backend doesn't track read status yet
-   */
-  get unreadCount(): number {
-    return this._receivedShares().length;
   }
 }

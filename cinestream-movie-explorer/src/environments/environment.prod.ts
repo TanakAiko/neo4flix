@@ -5,11 +5,14 @@
 export const environment = {
   production: true,
   
-  // API Configuration - Update with production URL
-  apiBaseUrl: 'https://api.neo4flix.com',
+  // API Configuration - Production URL
+  apiBaseUrl: 'https://elanor-nonprofessed-venus.ngrok-free.dev',
   
   // TMDB Image Configuration
   tmdbImageBaseUrl: 'https://image.tmdb.org/t/p',
+  tmdbPosterSize: 'w500',
+  tmdbBackdropSize: 'w1280',
+  tmdbProfileSize: 'w185',
   
   // Feature Flags
   features: {

@@ -1,9 +1,9 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { tap, catchError, map } from 'rxjs/operators';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Observable, of, forkJoin } from 'rxjs';
+import { tap, catchError, finalize } from 'rxjs/operators';
 import { environment } from '../environments/environment';
+import { NotificationService } from './notification.service';
 
 // ============================================================================
 // INTERFACES - Based on Backend API Documentation
@@ -16,7 +16,8 @@ export interface MovieSummary {
   tmdbId: number;
   title: string;
   overview: string;
-  posterPath: string;
+  posterPath: string | null;
+  backdropPath?: string | null;
   voteAverage: number;
   releaseYear: number;
 }
@@ -29,7 +30,9 @@ export interface MovieDetails {
   title: string;
   overview: string;
   releaseDate: string;
-  posterPath: string;
+  runtime: number;
+  posterPath: string | null;
+  backdropPath: string | null;
   voteAverage: number;
   genres: string[];
   directors: Person[];
@@ -42,26 +45,33 @@ export interface MovieDetails {
 export interface Person {
   tmdbId: number;
   name: string;
-  profilePath: string;
+  profilePath: string | null;
 }
 
 /**
- * Legacy Movie interface for backward compatibility with existing components
+ * Movie display model with full image URLs (for UI components)
  */
-export interface Movie {
-  id: string;
-  tmdbId?: number;
+export interface MovieDisplay {
+  tmdbId: number;
   title: string;
   year: number;
-  genre: string[];
+  genres: string[];
   rating: number;
   description: string;
-  director: string;
-  cast: string[];
   duration: string;
   poster: string;
   backdrop: string;
-  reviews: { user: string; content: string; highlight?: boolean; rating?: number }[];
+  directors: PersonDisplay[];
+  cast: PersonDisplay[];
+}
+
+/**
+ * Person display model with full image URL
+ */
+export interface PersonDisplay {
+  tmdbId: number;
+  name: string;
+  profileImage: string;
 }
 
 // ============================================================================
@@ -70,6 +80,14 @@ export interface Movie {
 
 const API_BASE_URL = environment.apiBaseUrl;
 const TMDB_IMAGE_BASE_URL = environment.tmdbImageBaseUrl;
+const POSTER_SIZE = environment.tmdbPosterSize;
+const BACKDROP_SIZE = environment.tmdbBackdropSize;
+const PROFILE_SIZE = environment.tmdbProfileSize;
+
+// Placeholder images
+const PLACEHOLDER_POSTER = 'https://via.placeholder.com/500x750/1a1f26/666666?text=No+Poster';
+const PLACEHOLDER_BACKDROP = 'https://via.placeholder.com/1280x720/1a1f26/666666?text=No+Backdrop';
+const PLACEHOLDER_PROFILE = 'https://via.placeholder.com/185x278/1a1f26/666666?text=No+Photo';
 
 // ============================================================================
 // MOVIE SERVICE
@@ -83,6 +101,7 @@ export class MovieService {
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   private readonly http = inject(HttpClient);
+  private readonly notificationService = inject(NotificationService);
   private readonly apiUrl = `${API_BASE_URL}/api/movies`;
 
   // -------------------------------------------------------------------------
@@ -101,6 +120,9 @@ export class MovieService {
   /** Currently selected movie details */
   private readonly _selectedMovie = signal<MovieDetails | null>(null);
   
+  /** Similar movies for the selected movie */
+  private readonly _similarMovies = signal<MovieSummary[]>([]);
+  
   /** Loading state */
   private readonly _isLoading = signal<boolean>(false);
   
@@ -112,137 +134,27 @@ export class MovieService {
   readonly popularMovies = this._popularMovies.asReadonly();
   readonly searchResults = this._searchResults.asReadonly();
   readonly selectedMovie = this._selectedMovie.asReadonly();
+  readonly similarMovies = this._similarMovies.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
 
-  // -------------------------------------------------------------------------
-  // Legacy support - Mock data for existing components
-  // -------------------------------------------------------------------------
-  readonly movies = signal<Movie[]>([
-    {
-      id: 'dune-2',
-      tmdbId: 693134,
-      title: 'Dune: Part Two',
-      year: 2024,
-      genre: ['Sci-Fi', 'Adventure'],
-      rating: 4.8,
-      description: 'Paul Atreides unites with Chani and the Fremen while on a warpath of revenge against the conspirators who destroyed his family.',
-      director: 'Denis Villeneuve',
-      cast: ['Timothée Chalamet', 'Zendaya', 'Rebecca Ferguson'],
-      duration: '2h 46m',
-      poster: 'https://picsum.photos/seed/dune2/400/600',
-      backdrop: 'https://picsum.photos/seed/dune2bg/1200/800',
-      reviews: [
-        { user: 'SciFi_Fan_99', content: 'An absolute masterpiece of visual storytelling.', highlight: true, rating: 5 },
-        { user: 'CinemaLover', content: 'The sound design and the score are on another level.', rating: 5 },
-      ]
-    },
-    {
-      id: 'oppenheimer',
-      tmdbId: 872585,
-      title: 'Oppenheimer',
-      year: 2023,
-      genre: ['Drama', 'History'],
-      rating: 4.7,
-      description: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.',
-      director: 'Christopher Nolan',
-      cast: ['Cillian Murphy', 'Emily Blunt', 'Matt Damon'],
-      duration: '3h 00m',
-      poster: 'https://picsum.photos/seed/oppenheimer/400/600',
-      backdrop: 'https://picsum.photos/seed/oppenheimerbg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'barbie',
-      tmdbId: 346698,
-      title: 'Barbie',
-      year: 2023,
-      genre: ['Comedy', 'Fantasy'],
-      rating: 4.2,
-      description: 'Barbie suffers a crisis that leads her to question her world and her existence.',
-      director: 'Greta Gerwig',
-      cast: ['Margot Robbie', 'Ryan Gosling'],
-      duration: '1h 54m',
-      poster: 'https://picsum.photos/seed/barbie/400/600',
-      backdrop: 'https://picsum.photos/seed/barbiebg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'john-wick-3',
-      tmdbId: 458156,
-      title: 'John Wick: Chapter 3 – Parabellum',
-      year: 2019,
-      genre: ['Action', 'Thriller'],
-      rating: 4.5,
-      description: 'John Wick is on the run after killing a member of the international assassin\'s guild.',
-      director: 'Chad Stahelski',
-      cast: ['Keanu Reeves', 'Halle Berry', 'Laurence Fishburne'],
-      duration: '2h 11m',
-      poster: 'https://picsum.photos/seed/jw3/400/600',
-      backdrop: 'https://picsum.photos/seed/jw3bg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'poor-things',
-      tmdbId: 792307,
-      title: 'Poor Things',
-      year: 2023,
-      genre: ['Comedy', 'Drama', 'Sci-Fi'],
-      rating: 4.3,
-      description: 'The incredible tale about the fantastical evolution of Bella Baxter.',
-      director: 'Yorgos Lanthimos',
-      cast: ['Emma Stone', 'Mark Ruffalo'],
-      duration: '2h 21m',
-      poster: 'https://picsum.photos/seed/poorthings/400/600',
-      backdrop: 'https://picsum.photos/seed/poorthingsbg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'killers',
-      tmdbId: 466420,
-      title: 'Killers of the Flower Moon',
-      year: 2023,
-      genre: ['Crime', 'Drama', 'History'],
-      rating: 4.4,
-      description: 'When oil is discovered in 1920s Oklahoma under Osage Nation land, the Osage people are murdered one by one.',
-      director: 'Martin Scorsese',
-      cast: ['Leonardo DiCaprio', 'Robert De Niro'],
-      duration: '3h 26m',
-      poster: 'https://picsum.photos/seed/killers/400/600',
-      backdrop: 'https://picsum.photos/seed/killersbg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'spider-verse',
-      tmdbId: 569094,
-      title: 'Spider-Man: Across the Spider-Verse',
-      year: 2023,
-      genre: ['Animation', 'Action', 'Adventure'],
-      rating: 4.9,
-      description: 'Miles Morales catapults across the Multiverse.',
-      director: 'Joaquim Dos Santos',
-      cast: ['Shameik Moore', 'Hailee Steinfeld'],
-      duration: '2h 20m',
-      poster: 'https://picsum.photos/seed/spider/400/600',
-      backdrop: 'https://picsum.photos/seed/spiderbg/1200/800',
-      reviews: []
-    },
-    {
-      id: 'blade-runner',
-      tmdbId: 335984,
-      title: 'Blade Runner 2049',
-      year: 2017,
-      genre: ['Sci-Fi', 'Thriller'],
-      rating: 4.7,
-      description: 'Young Blade Runner K\'s discovery of a long-buried secret leads him to track down former Blade Runner Rick Deckard.',
-      director: 'Denis Villeneuve',
-      cast: ['Ryan Gosling', 'Harrison Ford'],
-      duration: '2h 44m',
-      poster: 'https://picsum.photos/seed/br2049/400/600',
-      backdrop: 'https://picsum.photos/seed/br2049bg/1200/800',
-      reviews: []
-    }
-  ]);
+  // Computed: All movies combined for browsing
+  readonly allMovies = computed(() => {
+    const trending = this._trendingMovies();
+    const popular = this._popularMovies();
+    // Combine and deduplicate by tmdbId
+    const combined = [...trending, ...popular];
+    const unique = combined.filter((movie, index, self) => 
+      index === self.findIndex(m => m.tmdbId === movie.tmdbId)
+    );
+    return unique;
+  });
+
+  // Computed: Selected movie as display model
+  readonly selectedMovieDisplay = computed(() => {
+    const movie = this._selectedMovie();
+    return movie ? this.toMovieDisplay(movie) : null;
+  });
 
   // -------------------------------------------------------------------------
   // API Methods - Backend Integration
@@ -259,9 +171,11 @@ export class MovieService {
       tap((movies) => this._trendingMovies.set(movies)),
       catchError((error) => {
         this._error.set('Failed to fetch trending movies');
+        this.notificationService.error('Failed to load trending movies');
+        console.error('Trending movies error:', error);
         return of([]);
       }),
-      tap(() => this._isLoading.set(false))
+      finalize(() => this._isLoading.set(false))
     );
   }
 
@@ -276,9 +190,36 @@ export class MovieService {
       tap((movies) => this._popularMovies.set(movies)),
       catchError((error) => {
         this._error.set('Failed to fetch popular movies');
+        this.notificationService.error('Failed to load popular movies');
+        console.error('Popular movies error:', error);
         return of([]);
       }),
-      tap(() => this._isLoading.set(false))
+      finalize(() => this._isLoading.set(false))
+    );
+  }
+
+  /**
+   * Fetch both trending and popular movies
+   */
+  fetchAllMovies(): Observable<[MovieSummary[], MovieSummary[]]> {
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    return forkJoin([
+      this.http.get<MovieSummary[]>(`${this.apiUrl}/trending`),
+      this.http.get<MovieSummary[]>(`${this.apiUrl}/popular`)
+    ]).pipe(
+      tap(([trending, popular]) => {
+        this._trendingMovies.set(trending);
+        this._popularMovies.set(popular);
+      }),
+      catchError((error) => {
+        this._error.set('Failed to fetch movies');
+        this.notificationService.error('Failed to load movies');
+        console.error('Fetch all movies error:', error);
+        return of([[], []] as [MovieSummary[], MovieSummary[]]);
+      }),
+      finalize(() => this._isLoading.set(false))
     );
   }
 
@@ -300,9 +241,10 @@ export class MovieService {
       tap((movies) => this._searchResults.set(movies)),
       catchError((error) => {
         this._error.set('Failed to search movies');
+        console.error('Search movies error:', error);
         return of([]);
       }),
-      tap(() => this._isLoading.set(false))
+      finalize(() => this._isLoading.set(false))
     );
   }
 
@@ -317,17 +259,20 @@ export class MovieService {
       tap((movie) => this._selectedMovie.set(movie)),
       catchError((error) => {
         this._error.set('Failed to fetch movie details');
+        this.notificationService.error('Failed to load movie details');
+        console.error('Movie details error:', error);
         throw error;
       }),
-      tap(() => this._isLoading.set(false))
+      finalize(() => this._isLoading.set(false))
     );
   }
 
   /**
-   * Get similar movies
+   * Get similar movies by TMDB ID
    */
   getSimilarMovies(tmdbId: number): Observable<MovieSummary[]> {
     return this.http.get<MovieSummary[]>(`${this.apiUrl}/${tmdbId}/similar`).pipe(
+      tap((movies) => this._similarMovies.set(movies)),
       catchError((error) => {
         console.error('Failed to fetch similar movies:', error);
         return of([]);
@@ -335,19 +280,123 @@ export class MovieService {
     );
   }
 
+  /**
+   * Get movie details and similar movies together
+   */
+  getMovieWithSimilar(tmdbId: number): Observable<{ movie: MovieDetails; similar: MovieSummary[] }> {
+    this._isLoading.set(true);
+
+    return forkJoin({
+      movie: this.http.get<MovieDetails>(`${this.apiUrl}/${tmdbId}`),
+      similar: this.http.get<MovieSummary[]>(`${this.apiUrl}/${tmdbId}/similar`).pipe(
+        catchError(() => of([]))
+      )
+    }).pipe(
+      tap(({ movie, similar }) => {
+        this._selectedMovie.set(movie);
+        this._similarMovies.set(similar);
+      }),
+      catchError((error) => {
+        this._error.set('Failed to fetch movie');
+        this.notificationService.error('Failed to load movie details');
+        throw error;
+      }),
+      finalize(() => this._isLoading.set(false))
+    );
+  }
+
   // -------------------------------------------------------------------------
-  // Helper Methods
+  // Image URL Helper Methods
   // -------------------------------------------------------------------------
 
   /**
-   * Get full TMDB image URL
+   * Get full poster image URL from TMDB path
    */
-  getImageUrl(path: string | null, size: 'w200' | 'w300' | 'w500' | 'original' = 'w500'): string {
-    if (!path) {
-      return 'https://via.placeholder.com/500x750?text=No+Image';
-    }
-    return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
+  getPosterUrl(path: string | null | undefined): string {
+    if (!path) return PLACEHOLDER_POSTER;
+    return `${TMDB_IMAGE_BASE_URL}/${POSTER_SIZE}${path}`;
   }
+
+  /**
+   * Get full backdrop image URL from TMDB path
+   */
+  getBackdropUrl(path: string | null | undefined): string {
+    if (!path) return PLACEHOLDER_BACKDROP;
+    return `${TMDB_IMAGE_BASE_URL}/${BACKDROP_SIZE}${path}`;
+  }
+
+  /**
+   * Get full profile image URL from TMDB path
+   */
+  getProfileUrl(path: string | null | undefined): string {
+    if (!path) return PLACEHOLDER_PROFILE;
+    return `${TMDB_IMAGE_BASE_URL}/${PROFILE_SIZE}${path}`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Conversion Methods
+  // -------------------------------------------------------------------------
+
+  /**
+   * Convert MovieDetails to MovieDisplay for UI components
+   */
+  toMovieDisplay(movie: MovieDetails): MovieDisplay {
+    return {
+      tmdbId: movie.tmdbId,
+      title: movie.title,
+      year: movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 0,
+      genres: movie.genres || [],
+      rating: Math.round(movie.voteAverage * 10) / 10 / 2, // Convert 10-scale to 5-scale
+      description: movie.overview,
+      duration: this.formatRuntime(movie.runtime),
+      poster: this.getPosterUrl(movie.posterPath),
+      backdrop: this.getBackdropUrl(movie.backdropPath),
+      directors: (movie.directors || []).map(p => this.toPersonDisplay(p)),
+      cast: (movie.cast || []).map(p => this.toPersonDisplay(p)),
+    };
+  }
+
+  /**
+   * Convert MovieSummary to a simpler display format
+   */
+  toSummaryDisplay(movie: MovieSummary): { tmdbId: number; title: string; poster: string; backdrop: string; rating: number; year: number; description: string } {
+    return {
+      tmdbId: movie.tmdbId,
+      title: movie.title,
+      poster: this.getPosterUrl(movie.posterPath),
+      backdrop: this.getBackdropUrl(movie.backdropPath),
+      rating: Math.round(movie.voteAverage * 10) / 10 / 2,
+      year: movie.releaseYear,
+      description: movie.overview,
+    };
+  }
+
+  /**
+   * Convert Person to PersonDisplay
+   */
+  private toPersonDisplay(person: Person): PersonDisplay {
+    return {
+      tmdbId: person.tmdbId,
+      name: person.name,
+      profileImage: this.getProfileUrl(person.profilePath),
+    };
+  }
+
+  /**
+   * Format runtime minutes to human-readable string
+   */
+  private formatRuntime(minutes: number | null | undefined): string {
+    if (!minutes) return 'N/A';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours === 0) return `${mins}m`;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}h ${mins}m`;
+  }
+
+  // -------------------------------------------------------------------------
+  // State Management Methods
+  // -------------------------------------------------------------------------
 
   /**
    * Clear search results
@@ -361,27 +410,25 @@ export class MovieService {
    */
   clearSelectedMovie(): void {
     this._selectedMovie.set(null);
+    this._similarMovies.set([]);
   }
 
-  // -------------------------------------------------------------------------
-  // Legacy Methods - For backward compatibility
-  // -------------------------------------------------------------------------
-
-  getMovieById(id: string): Movie | undefined {
-    return this.movies().find(m => m.id === id);
+  /**
+   * Clear all movie data
+   */
+  clearAll(): void {
+    this._trendingMovies.set([]);
+    this._popularMovies.set([]);
+    this._searchResults.set([]);
+    this._selectedMovie.set(null);
+    this._similarMovies.set([]);
+    this._error.set(null);
   }
 
-  addReview(movieId: string, review: { user: string; content: string; rating: number }): void {
-    this.movies.update(movies => 
-      movies.map(movie => {
-        if (movie.id === movieId) {
-          return {
-            ...movie,
-            reviews: [...movie.reviews, review]
-          };
-        }
-        return movie;
-      })
-    );
+  /**
+   * Clear error state
+   */
+  clearError(): void {
+    this._error.set(null);
   }
 }

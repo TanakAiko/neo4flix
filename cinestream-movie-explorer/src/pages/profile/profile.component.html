@@ -9,35 +9,35 @@
 
        <!-- Avatar -->
        <div class="relative z-10 flex-shrink-0">
-          <div class="w-32 h-32 rounded-full border-4 border-[#1a1f26] shadow-xl overflow-hidden bg-gray-800">
-            <img [ngSrc]="user.avatar" width="128" height="128" class="object-cover w-full h-full" alt="Profile">
+          <div class="w-32 h-32 rounded-full border-4 border-[#1a1f26] shadow-xl overflow-hidden bg-gray-800 flex items-center justify-center">
+            <span class="text-4xl font-bold text-white">{{ user.username?.charAt(0)?.toUpperCase() }}</span>
           </div>
        </div>
 
        <!-- User Info -->
        <div class="flex-1 text-center md:text-left z-10 mt-4 md:mt-2">
           <h1 class="text-3xl font-bold text-white mb-1">{{ user.firstname }} {{ user.lastname }}</h1>
-          <p class="text-[#00a8c5] font-medium mb-6 text-sm">@ {{ user.username }} • {{ user.email }}</p>
+          <p class="text-[#00a8c5] font-medium mb-6 text-sm">&#64;{{ user.username }} • {{ user.email }}</p>
           
           <div class="flex items-center justify-center md:justify-start gap-8 text-sm">
              <div class="text-center md:text-left">
-                <span class="block font-bold text-white text-xl">{{ user.followersCount }}</span>
+                <span class="block font-bold text-white text-xl">{{ user.followersCount || 0 }}</span>
                 <span class="text-gray-500 uppercase text-[10px] tracking-widest font-semibold">Followers</span>
              </div>
              <div class="text-center md:text-left">
-                <span class="block font-bold text-white text-xl">{{ user.followingCount }}</span>
+                <span class="block font-bold text-white text-xl">{{ user.followingCount || 0 }}</span>
                 <span class="text-gray-500 uppercase text-[10px] tracking-widest font-semibold">Following</span>
              </div>
           </div>
        </div>
 
-       <!-- Edit Profile Button -->
+       <!-- Logout Button -->
        <div class="z-10 mt-4 md:mt-0">
-          <button class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-2.5 rounded-full font-semibold transition-all flex items-center gap-2">
+          <button (click)="authService.logout()" class="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-6 py-2.5 rounded-full font-semibold transition-all flex items-center gap-2">
              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
              </svg>
-             Edit Profile
+             Sign Out
           </button>
        </div>
     </div>
@@ -64,86 +64,126 @@
          [class.hover:text-white]="activeTab() !== 'recommendations'"
        >
           Incoming Recommendations
+          @if (userRecommendations().length > 0) {
+            <span class="ml-2 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full inline-flex items-center justify-center font-bold">
+              {{userRecommendations().length}}
+            </span>
+          }
           @if (activeTab() === 'recommendations') {
              <div class="absolute bottom-0 left-0 w-full h-0.5 bg-[#00a8c5]"></div>
           }
        </button>
     </div>
 
-    <!-- Tab Content -->
-    @if (activeTab() === 'reviews') {
-       <div class="space-y-4 animate-fade-in">
-          @if (userReviews().length > 0) {
-             @for (item of userReviews(); track item.movie.id) {
-                <div class="glass-panel p-4 rounded-xl flex flex-col md:flex-row gap-6 border border-white/5 transition-all hover:bg-[#252b36]">
-                   <!-- Movie Poster (Small) -->
-                   <a [routerLink]="['/movie', item.movie.id]" class="block w-full md:w-24 h-48 md:h-36 flex-shrink-0 rounded-lg overflow-hidden relative group">
-                      <img [ngSrc]="item.movie.poster" width="96" height="144" class="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" alt="Poster">
-                   </a>
-                   
-                   <div class="flex-1 py-1">
-                      <div class="flex justify-between items-start mb-2">
-                         <a [routerLink]="['/movie', item.movie.id]" class="text-xl font-bold text-white hover:text-[#00a8c5] transition-colors">
-                            {{ item.movie.title }}
-                         </a>
-                         <span class="text-xs text-gray-500 font-mono">{{ item.movie.year }}</span>
-                      </div>
-
-                      <!-- Rating Display -->
-                      <div class="flex items-center gap-1 mb-3">
-                          @for (s of [1,2,3,4,5]; track s) {
-                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5" [class.text-[#00a8c5]]="s <= item.rating" [class.text-gray-700]="s > item.rating">
-                                <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
-                             </svg>
-                          }
-                          <span class="ml-2 text-white font-bold">{{ item.rating }}/5</span>
-                      </div>
-                      
-                      <div class="bg-black/20 p-4 rounded-lg border-l-2 border-[#00a8c5]">
-                          <p class="text-gray-300 italic">"{{ item.content }}"</p>
-                      </div>
-                   </div>
-                </div>
-             }
-          } @else {
-             <div class="text-center py-20 bg-white/5 rounded-2xl">
-                <p class="text-gray-400 text-lg">You haven't rated any movies yet.</p>
-                <a routerLink="/browse" class="inline-block mt-4 text-[#00a8c5] hover:text-white font-bold">Start Exploring</a>
-             </div>
-          }
-       </div>
+    <!-- Loading State -->
+    @if (isLoading()) {
+      <div class="flex flex-col items-center justify-center py-20">
+        <div class="w-16 h-16 border-4 border-[#00a8c5] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-gray-400">Loading...</p>
+      </div>
     } @else {
-       <!-- Recommendations Tab -->
-       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-          @for (rec of userRecommendations(); track rec.movie.id) {
-             <div class="bg-[#252b36] rounded-xl overflow-hidden border border-white/5 flex flex-col">
-                <div class="relative h-40 overflow-hidden">
-                   <img [ngSrc]="rec.movie.backdrop" fill class="object-cover opacity-60" alt="Backdrop">
-                   <div class="absolute inset-0 bg-gradient-to-t from-[#252b36] to-transparent"></div>
-                   <div class="absolute bottom-4 left-4">
-                      <h3 class="text-white font-bold text-lg leading-tight">{{ rec.movie.title }}</h3>
-                   </div>
-                </div>
-                <div class="p-6 flex-1 flex flex-col">
-                   <div class="flex items-center gap-3 mb-4">
-                      <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold text-white">
-                         {{ rec.from.charAt(0) }}
+      <!-- Tab Content -->
+      @if (activeTab() === 'reviews') {
+         <div class="space-y-4 animate-fade-in">
+            @if (userReviews().length > 0) {
+               @for (item of userReviews(); track item.tmdbId) {
+                  <div class="glass-panel p-4 rounded-xl flex flex-col md:flex-row gap-6 border border-white/5 transition-all hover:bg-[#252b36]">
+                     <!-- Movie Poster (Small) -->
+                     <a [routerLink]="['/movie', item.tmdbId]" class="block w-full md:w-24 h-48 md:h-36 flex-shrink-0 rounded-lg overflow-hidden relative group">
+                        <img [src]="item.poster" class="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" alt="Poster">
+                     </a>
+                     
+                     <div class="flex-1 py-1">
+                        <div class="flex justify-between items-start mb-2">
+                           <a [routerLink]="['/movie', item.tmdbId]" class="text-xl font-bold text-white hover:text-[#00a8c5] transition-colors">
+                              {{ item.title }}
+                           </a>
+                           <span class="text-xs text-gray-500 font-mono">{{ item.ratedDate | date:'mediumDate' }}</span>
+                        </div>
+
+                        <!-- Rating Display -->
+                        <div class="flex items-center gap-1 mb-3">
+                            @for (s of [1,2,3,4,5]; track s) {
+                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5" [class.text-[#00a8c5]]="s <= item.rating" [class.text-gray-700]="s > item.rating">
+                                  <path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clip-rule="evenodd" />
+                               </svg>
+                            }
+                            <span class="ml-2 text-white font-bold">{{ item.rating }}/5</span>
+                        </div>
+                        
+                        @if (item.comment) {
+                          <div class="bg-black/20 p-4 rounded-lg border-l-2 border-[#00a8c5]">
+                              <p class="text-gray-300 italic">"{{ item.comment }}"</p>
+                          </div>
+                        }
+                     </div>
+                  </div>
+               }
+            } @else {
+               <div class="text-center py-20 bg-white/5 rounded-2xl">
+                  <p class="text-gray-400 text-lg">You haven't rated any movies yet.</p>
+                  <a routerLink="/browse" class="inline-block mt-4 text-[#00a8c5] hover:text-white font-bold">Start Exploring</a>
+               </div>
+            }
+         </div>
+      } @else {
+         <!-- Recommendations Tab -->
+         @if (userRecommendations().length > 0) {
+           <div class="space-y-4 max-w-3xl animate-fade-in">
+              @for (rec of userRecommendations(); track rec.tmdbId + rec.fromUsername) {
+                <div class="bg-[#252b36] rounded-2xl p-4 flex gap-4 items-start border border-white/5 hover:border-[#00a8c5]/30 transition-all">
+                  <!-- Movie Poster -->
+                  <a [routerLink]="['/movie', rec.tmdbId]" class="flex-shrink-0">
+                    <img [src]="getPosterUrl(rec.posterPath)" class="w-24 h-36 rounded-lg object-cover shadow-lg" alt="{{rec.title}}">
+                  </a>
+                  
+                  <!-- Content -->
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#00a8c5] to-cyan-600 flex items-center justify-center text-white text-xs font-bold">
+                        {{rec.fromUsername.charAt(0).toUpperCase()}}
                       </div>
                       <div>
-                         <p class="text-xs text-gray-400 uppercase tracking-wide">Recommended by</p>
-                         <p class="text-white font-medium text-sm">{{ rec.from }}</p>
+                        <p class="text-white font-medium text-sm">{{rec.fromUsername}}</p>
+                        <p class="text-gray-500 text-xs">recommended this</p>
                       </div>
-                   </div>
-                   <p class="text-gray-300 italic text-sm mb-6 flex-1">"{{ rec.message }}"</p>
-                   
-                   <a [routerLink]="['/movie', rec.movie.id]" class="block w-full text-center bg-[#00a8c5] hover:bg-[#0097b2] text-white py-2.5 rounded-lg font-bold transition-colors">
-                      View Details
-                   </a>
+                    </div>
+                    
+                    <a [routerLink]="['/movie', rec.tmdbId]" class="text-white font-bold text-lg hover:text-[#00a8c5] transition-colors block mb-2">
+                      {{rec.title}}
+                    </a>
+                    
+                    @if (rec.message) {
+                      <p class="text-gray-400 text-sm italic bg-black/20 rounded-lg p-3 border-l-2 border-[#00a8c5]">
+                        "{{rec.message}}"
+                      </p>
+                    }
+                  </div>
                 </div>
-             </div>
-          }
-       </div>
+              }
+           </div>
+         } @else {
+           <div class="text-center py-20 bg-white/5 rounded-2xl animate-fade-in">
+              <p class="text-gray-400 text-lg">No recommendations from friends yet.</p>
+              <p class="text-gray-500 mt-2 text-sm">When friends share movies with you, they'll appear here.</p>
+           </div>
+         }
+      }
     }
 
+  } @else {
+    <!-- Not logged in state -->
+    <div class="flex flex-col items-center justify-center py-20">
+       <div class="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6">
+         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-10 h-10 text-gray-400">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+          </svg>
+       </div>
+       <p class="text-xl text-gray-300 font-medium">Sign in to see your profile</p>
+       <p class="text-gray-500 mt-2">View your ratings and recommendations.</p>
+       <a routerLink="/auth" class="mt-6 px-6 py-3 bg-[#00a8c5] text-white rounded-lg font-bold hover:bg-[#0097b2] transition-colors">
+         Sign In
+       </a>
+    </div>
   }
 </div>

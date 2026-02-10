@@ -1,9 +1,10 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { tap, catchError, finalize } from 'rxjs/operators';
-import { Movie, MovieSummary } from './movie.service';
 import { environment } from '../environments/environment';
+import { NotificationService } from './notification.service';
+import { MovieSummary } from './movie.service';
 
 // ============================================================================
 // CONSTANTS
@@ -23,17 +24,18 @@ export class WatchlistService {
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   private readonly http = inject(HttpClient);
+  private readonly notificationService = inject(NotificationService);
   private readonly apiUrl = `${API_BASE_URL}/api/movies`;
 
   // -------------------------------------------------------------------------
   // State Management with Signals
   // -------------------------------------------------------------------------
 
-  /** User's watchlist (from API) */
+  /** User's watchlist movies */
   private readonly _watchlistMovies = signal<MovieSummary[]>([]);
   
-  /** Legacy watchlist for backward compatibility */
-  private readonly _legacyWatchlist = signal<Movie[]>([]);
+  /** Set of movie IDs in watchlist for quick lookup */
+  private readonly _watchlistIds = signal<Set<number>>(new Set());
   
   /** Loading state */
   private readonly _isLoading = signal<boolean>(false);
@@ -43,12 +45,17 @@ export class WatchlistService {
 
   // Public readonly signals
   readonly watchlistMovies = this._watchlistMovies.asReadonly();
-  readonly watchlist = this._legacyWatchlist.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
 
+  // Computed: Watchlist count
+  readonly count = computed(() => this._watchlistMovies().length);
+
+  // Computed: Is watchlist empty
+  readonly isEmpty = computed(() => this._watchlistMovies().length === 0);
+
   // -------------------------------------------------------------------------
-  // API Methods - Backend Integration
+  // API Methods
   // -------------------------------------------------------------------------
 
   /**
@@ -59,7 +66,10 @@ export class WatchlistService {
     this._error.set(null);
 
     return this.http.get<MovieSummary[]>(`${this.apiUrl}/watchlist`).pipe(
-      tap((movies) => this._watchlistMovies.set(movies)),
+      tap((movies) => {
+        this._watchlistMovies.set(movies);
+        this._watchlistIds.set(new Set(movies.map(m => m.tmdbId)));
+      }),
       catchError((error) => {
         this._error.set('Failed to fetch watchlist');
         console.error('Watchlist fetch error:', error);
@@ -70,118 +80,97 @@ export class WatchlistService {
   }
 
   /**
-   * Add a movie to watchlist (by TMDB ID)
+   * Add a movie to watchlist by TMDB ID
    */
-  addToWatchlistByTmdbId(tmdbId: number): Observable<void> {
-    this._isLoading.set(true);
-    this._error.set(null);
+  addToWatchlist(tmdbId: number): Observable<void> {
+    // Optimistic update
+    this._watchlistIds.update(ids => new Set([...ids, tmdbId]));
 
     return this.http.post<void>(`${this.apiUrl}/${tmdbId}/watchlist`, {}).pipe(
       tap(() => {
-        // Refresh watchlist after adding
+        this.notificationService.success('Added to watchlist');
+        // Refresh watchlist to get full movie data
         this.fetchWatchlist().subscribe();
       }),
       catchError((error) => {
+        // Revert optimistic update
+        this._watchlistIds.update(ids => {
+          const newIds = new Set(ids);
+          newIds.delete(tmdbId);
+          return newIds;
+        });
         this._error.set('Failed to add to watchlist');
+        this.notificationService.error('Failed to add to watchlist');
+        console.error('Add to watchlist error:', error);
         throw error;
-      }),
-      finalize(() => this._isLoading.set(false))
+      })
     );
   }
 
   /**
-   * Remove a movie from watchlist (by TMDB ID)
+   * Remove a movie from watchlist by TMDB ID
    */
-  removeFromWatchlistByTmdbId(tmdbId: number): Observable<void> {
-    this._isLoading.set(true);
-    this._error.set(null);
+  removeFromWatchlist(tmdbId: number): Observable<void> {
+    // Optimistic update
+    const previousMovies = this._watchlistMovies();
+    this._watchlistMovies.update(movies => movies.filter(m => m.tmdbId !== tmdbId));
+    this._watchlistIds.update(ids => {
+      const newIds = new Set(ids);
+      newIds.delete(tmdbId);
+      return newIds;
+    });
 
     return this.http.delete<void>(`${this.apiUrl}/${tmdbId}/watchlist`).pipe(
       tap(() => {
-        // Update local state
-        this._watchlistMovies.update(movies => 
-          movies.filter(m => m.tmdbId !== tmdbId)
-        );
+        this.notificationService.success('Removed from watchlist');
       }),
       catchError((error) => {
+        // Revert optimistic update
+        this._watchlistMovies.set(previousMovies);
+        this._watchlistIds.set(new Set(previousMovies.map(m => m.tmdbId)));
         this._error.set('Failed to remove from watchlist');
+        this.notificationService.error('Failed to remove from watchlist');
+        console.error('Remove from watchlist error:', error);
         throw error;
-      }),
-      finalize(() => this._isLoading.set(false))
+      })
     );
   }
 
   /**
-   * Check if a movie is in the watchlist (by TMDB ID)
+   * Check if a movie is in the watchlist by TMDB ID
    */
-  isInWatchlistByTmdbId(tmdbId: number): boolean {
-    return this._watchlistMovies().some(m => m.tmdbId === tmdbId);
+  isInWatchlist(tmdbId: number): boolean {
+    return this._watchlistIds().has(tmdbId);
   }
 
   /**
-   * Toggle watchlist status (by TMDB ID)
+   * Toggle watchlist status by TMDB ID
    */
-  toggleWatchlistByTmdbId(tmdbId: number): Observable<void> {
-    if (this.isInWatchlistByTmdbId(tmdbId)) {
-      return this.removeFromWatchlistByTmdbId(tmdbId);
+  toggleWatchlist(tmdbId: number): Observable<void> {
+    if (this.isInWatchlist(tmdbId)) {
+      return this.removeFromWatchlist(tmdbId);
     } else {
-      return this.addToWatchlistByTmdbId(tmdbId);
+      return this.addToWatchlist(tmdbId);
     }
   }
 
   // -------------------------------------------------------------------------
-  // Legacy Methods - For backward compatibility
+  // State Management Methods
   // -------------------------------------------------------------------------
 
-  addToWatchlist(movie: Movie): void {
-    this._legacyWatchlist.update(list => {
-      if (list.some(m => m.id === movie.id)) return list;
-      return [...list, movie];
-    });
-
-    // Also add to backend if movie has tmdbId
-    if (movie.tmdbId) {
-      this.addToWatchlistByTmdbId(movie.tmdbId).subscribe();
-    }
+  /**
+   * Clear watchlist state (e.g., on logout)
+   */
+  clearWatchlist(): void {
+    this._watchlistMovies.set([]);
+    this._watchlistIds.set(new Set());
+    this._error.set(null);
   }
-
-  removeFromWatchlist(movieId: string): void {
-    const movie = this._legacyWatchlist().find(m => m.id === movieId);
-    this._legacyWatchlist.update(list => list.filter(m => m.id !== movieId));
-
-    // Also remove from backend if movie has tmdbId
-    if (movie?.tmdbId) {
-      this.removeFromWatchlistByTmdbId(movie.tmdbId).subscribe();
-    }
-  }
-
-  isInWatchlist(movieId: string): boolean {
-    return this._legacyWatchlist().some(m => m.id === movieId);
-  }
-
-  toggleWatchlist(movie: Movie): void {
-    if (this.isInWatchlist(movie.id)) {
-      this.removeFromWatchlist(movie.id);
-    } else {
-      this.addToWatchlist(movie);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Helper Methods
-  // -------------------------------------------------------------------------
 
   /**
    * Clear error state
    */
   clearError(): void {
     this._error.set(null);
-  }
-
-  /**
-   * Get watchlist count
-   */
-  get count(): number {
-    return this._watchlistMovies().length + this._legacyWatchlist().length;
   }
 }

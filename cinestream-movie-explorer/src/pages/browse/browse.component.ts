@@ -1,8 +1,20 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { MovieService } from '../../services/movie.service';
+import { MovieService, MovieSummary } from '../../services/movie.service';
+import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+
+interface MovieDisplayItem {
+  tmdbId: number;
+  title: string;
+  year: number;
+  genre: string[];
+  rating: number;
+  description: string;
+  poster: string;
+}
 
 @Component({
   selector: 'app-browse',
@@ -12,7 +24,7 @@ import { MovieService } from '../../services/movie.service';
   styleUrl: './browse.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BrowseComponent {
+export class BrowseComponent implements OnInit {
   // -------------------------------------------------------------------------
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
@@ -21,8 +33,7 @@ export class BrowseComponent {
   // -------------------------------------------------------------------------
   // State Management with Signals
   // -------------------------------------------------------------------------
-  readonly movies = this.movieService.movies;
-  readonly genres = ['Action', 'Comedy', 'Drama', 'Sci-Fi', 'Thriller', 'Horror', 'Romance'];
+  readonly genres = ['Action', 'Comedy', 'Drama', 'Science Fiction', 'Thriller', 'Horror', 'Romance'];
   readonly decades = ['2020s', '2010s', '2000s', '1990s', 'Classic'];
 
   // Filters
@@ -32,23 +43,36 @@ export class BrowseComponent {
   readonly minRating = signal(0);
   readonly maxRating = signal(5);
 
+  // Search debounce
+  private readonly searchSubject = new Subject<string>();
+
+  // Loading state
+  readonly isLoading = this.movieService.isLoading;
+
   // -------------------------------------------------------------------------
   // Computed Properties
   // -------------------------------------------------------------------------
-  readonly filteredMovies = computed(() => {
-    const query = this.searchQuery().toLowerCase();
+
+  // Convert API movies to display format
+  readonly movies = computed<MovieDisplayItem[]>(() => {
+    const allMovies = this.movieService.allMovies();
+    const searchResults = this.movieService.searchResults();
+    
+    // Use search results if we have an active search
+    const moviesToShow = this.searchQuery().trim() ? searchResults : allMovies;
+    
+    return moviesToShow.map(m => this.toDisplayItem(m));
+  });
+
+  readonly filteredMovies = computed<MovieDisplayItem[]>(() => {
+    const movies = this.movies();
     const genres = this.selectedGenres();
     const decade = this.selectedDecade();
     const min = this.minRating();
     const max = this.maxRating();
 
-    return this.movies().filter(movie => {
-      // Search
-      if (query && !movie.title.toLowerCase().includes(query)) {
-        return false;
-      }
-      
-      // Rating Range Check
+    return movies.filter(movie => {
+      // Rating Range Check (convert from 10-scale to 5-scale if needed)
       if (movie.rating < min || movie.rating > max) {
         return false;
       }
@@ -82,8 +106,34 @@ export class BrowseComponent {
   });
 
   // -------------------------------------------------------------------------
+  // Lifecycle Hooks
+  // -------------------------------------------------------------------------
+  ngOnInit(): void {
+    // Fetch initial movies
+    this.movieService.fetchAllMovies().subscribe();
+
+    // Set up search debounce
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(query => {
+        if (query.trim()) {
+          return this.movieService.searchMovies(query);
+        }
+        return [];
+      })
+    ).subscribe();
+  }
+
+  // -------------------------------------------------------------------------
   // Public Methods
   // -------------------------------------------------------------------------
+
+  onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.searchSubject.next(query);
+  }
+
   updateMin(value: number): void {
     if (value > this.maxRating()) {
       this.minRating.set(this.maxRating());
@@ -116,5 +166,20 @@ export class BrowseComponent {
     this.selectedDecade.set('');
     this.minRating.set(0);
     this.maxRating.set(5);
+  }
+
+  // -------------------------------------------------------------------------
+  // Private Methods
+  // -------------------------------------------------------------------------
+  private toDisplayItem(movie: MovieSummary): MovieDisplayItem {
+    return {
+      tmdbId: movie.tmdbId,
+      title: movie.title,
+      year: movie.releaseYear,
+      genre: [], // We don't have genres in summary, but can filter differently
+      rating: Math.round(movie.voteAverage * 10) / 10 / 2, // Convert 10-scale to 5-scale
+      description: movie.overview,
+      poster: this.movieService.getPosterUrl(movie.posterPath)
+    };
   }
 }

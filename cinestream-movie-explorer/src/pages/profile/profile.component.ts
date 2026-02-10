@@ -1,8 +1,20 @@
-import { Component, inject, computed, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, ChangeDetectionStrategy, OnInit } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { MovieService, Movie } from '../../services/movie.service';
+import { RatingService, UserRating } from '../../services/rating.service';
+import { RecommendationService, SharedRecommendation } from '../../services/recommendation.service';
+import { MovieService } from '../../services/movie.service';
+
+interface RatingDisplayItem {
+  tmdbId: number;
+  title: string;
+  posterPath: string;
+  poster: string;
+  rating: number;
+  comment: string;
+  ratedDate: string;
+}
 
 @Component({
   selector: 'app-profile',
@@ -12,11 +24,13 @@ import { MovieService, Movie } from '../../services/movie.service';
   styleUrl: './profile.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProfileComponent {
+export class ProfileComponent implements OnInit {
   // -------------------------------------------------------------------------
   // Dependency Injection (Angular 2026 Standard)
   // -------------------------------------------------------------------------
   readonly authService = inject(AuthService);
+  private readonly ratingService = inject(RatingService);
+  private readonly recommendationService = inject(RecommendationService);
   private readonly movieService = inject(MovieService);
   
   // -------------------------------------------------------------------------
@@ -28,33 +42,47 @@ export class ProfileComponent {
   // Computed Properties
   // -------------------------------------------------------------------------
   
-  /** Compute User's specific reviews from the global movie list */
-  readonly userReviews = computed(() => {
-    const user = this.authService.currentUser();
-    if (!user) return [];
+  /** User's ratings converted to display format */
+  readonly userReviews = computed<RatingDisplayItem[]>(() => {
+    return this.ratingService.userRatings().map(rating => this.toDisplayItem(rating));
+  });
 
-    const reviews: { movie: Movie; rating: number; content: string }[] = [];
-    for (const movie of this.movieService.movies()) {
-       const userReview = movie.reviews.find(r => r.user === user.username);
-       if (userReview) {
-          reviews.push({
-             movie: movie,
-             rating: userReview.rating || 0,
-             content: userReview.content
-          });
-       }
+  /** Received recommendations from friends */
+  readonly userRecommendations = this.recommendationService.receivedShares;
+
+  readonly isLoading = computed(() => 
+    this.ratingService.isLoading() || this.recommendationService.isLoading()
+  );
+
+  // -------------------------------------------------------------------------
+  // Lifecycle Hooks
+  // -------------------------------------------------------------------------
+  ngOnInit(): void {
+    if (this.authService.isLoggedIn()) {
+      this.ratingService.fetchUserRatings().subscribe();
+      this.recommendationService.fetchReceivedShares().subscribe();
     }
-    return reviews;
-  });
+  }
 
-  /** Mock incoming recommendations based on available movies */
-  readonly userRecommendations = computed(() => {
-     const movies = this.movieService.movies();
-     const recs = [
-        { movie: movies[3], from: 'Tony Stark', message: 'You have to see the choreography in this one!' },
-        { movie: movies[6], from: 'Peter Parker', message: 'The animation style is mind blowing.' },
-        { movie: movies[5], from: 'Bruce Wayne', message: 'A bit dark, but fits your style.' }
-     ].filter(r => r.movie !== undefined);
-     return recs;
-  });
+  // -------------------------------------------------------------------------
+  // Public Methods
+  // -------------------------------------------------------------------------
+  getPosterUrl(posterPath: string | null): string {
+    return this.movieService.getPosterUrl(posterPath);
+  }
+
+  // -------------------------------------------------------------------------
+  // Private Methods
+  // -------------------------------------------------------------------------
+  private toDisplayItem(rating: UserRating): RatingDisplayItem {
+    return {
+      tmdbId: rating.tmdbId,
+      title: rating.title,
+      posterPath: rating.posterPath,
+      poster: this.movieService.getPosterUrl(rating.posterPath),
+      rating: rating.score,
+      comment: rating.comment || '',
+      ratedDate: rating.ratedDate
+    };
+  }
 }

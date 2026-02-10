@@ -267,7 +267,7 @@ export class AuthService {
     }
 
     this.clearAuthState();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/auth']);
   }
 
   // -------------------------------------------------------------------------

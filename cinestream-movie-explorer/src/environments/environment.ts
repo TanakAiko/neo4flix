@@ -1,5 +1,5 @@
 // ============================================================================
-// ENVIRONMENT CONFIGURATION
+// ENVIRONMENT CONFIGURATION - DEVELOPMENT
 // Centralized configuration for API endpoints and feature flags
 // ============================================================================
 
@@ -7,14 +7,17 @@ export const environment = {
   production: false,
   
   // API Configuration
-  apiBaseUrl: 'https://elanor-nonprofessed-venus.ngrok-free.dev',
+  apiBaseUrl: 'http://localhost:8085',
   
   // TMDB Image Configuration
   tmdbImageBaseUrl: 'https://image.tmdb.org/t/p',
+  tmdbPosterSize: 'w500',      // w92, w154, w185, w342, w500, w780, original
+  tmdbBackdropSize: 'w1280',   // w300, w780, w1280, original
+  tmdbProfileSize: 'w185',     // w45, w185, h632, original
   
   // Feature Flags
   features: {
-    enableMockData: true, // Use mock data when backend is unavailable
+    enableMockData: false, // Disable mock data - use real API
     enableDebugLogging: true,
   },
   

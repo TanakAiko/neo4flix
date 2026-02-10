@@ -17,10 +17,11 @@ export type {
 // Movies
 export { MovieService } from './movie.service';
 export type { 
-  Movie, 
   MovieSummary, 
   MovieDetails, 
-  Person 
+  MovieDisplay,
+  Person,
+  PersonDisplay
 } from './movie.service';
 
 // Ratings
@@ -33,13 +34,23 @@ export type {
 // Recommendations
 export { RecommendationService } from './recommendation.service';
 export type { 
-  Recommendation, 
+  Recommendation,
+  RecommendationDisplay,
   ShareRequest, 
   SharedRecommendation 
 } from './recommendation.service';
 
 // Watchlist
 export { WatchlistService } from './watchlist.service';
+
+// User Service
+export { UserService } from './user.service';
+export type { UserDisplay } from './user.service';
+// Note: PublicProfile is exported from auth.service
+
+// Notifications
+export { NotificationService } from './notification.service';
+export type { Notification, NotificationType } from './notification.service';
 
 // Interceptors
 export { authInterceptor } from './auth.interceptor';
