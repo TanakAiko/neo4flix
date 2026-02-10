@@ -97,7 +97,7 @@
           <div>
             <h3 class="text-gray-400 font-semibold mb-4 text-xs uppercase tracking-wider">Genres</h3>
             <div class="space-y-3">
-              @for (genre of genres; track genre) {
+              @for (genre of availableGenres(); track genre) {
                 <label class="flex items-center space-x-3 cursor-pointer group select-none">
                   <div class="relative">
                     <input 
@@ -182,6 +182,10 @@
                 <h3 class="font-bold text-base leading-tight text-gray-200 group-hover:text-[#00a8c5] transition-colors truncate">{{movie.title}}</h3>
                 <div class="flex items-center gap-2 text-xs text-gray-500 mt-1">
                     <span>{{movie.year}}</span>
+                    @if (movie.genre.length > 0) {
+                      <span class="w-1 h-1 bg-gray-600 rounded-full"></span>
+                      <span class="truncate">{{ movie.genre.slice(0, 2).join(', ') }}</span>
+                    }
                 </div>
                 </div>
             </a>

@@ -20,6 +20,7 @@ export interface MovieSummary {
   backdropPath?: string | null;
   voteAverage: number;
   releaseYear: number;
+  genres: string[];
 }
 
 /**
@@ -359,7 +360,7 @@ export class MovieService {
   /**
    * Convert MovieSummary to a simpler display format
    */
-  toSummaryDisplay(movie: MovieSummary): { tmdbId: number; title: string; poster: string; backdrop: string; rating: number; year: number; description: string } {
+  toSummaryDisplay(movie: MovieSummary): { tmdbId: number; title: string; poster: string; backdrop: string; rating: number; year: number; description: string; genres: string[] } {
     return {
       tmdbId: movie.tmdbId,
       title: movie.title,
@@ -368,6 +369,7 @@ export class MovieService {
       rating: Math.round(movie.voteAverage * 10) / 10 / 2,
       year: movie.releaseYear,
       description: movie.overview,
+      genres: movie.genres || [],
     };
   }
 

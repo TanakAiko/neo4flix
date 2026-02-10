@@ -34,7 +34,6 @@ export class BrowseComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
   // State Management with Signals
   // -------------------------------------------------------------------------
-  readonly genres = ['Action', 'Comedy', 'Drama', 'Science Fiction', 'Thriller', 'Horror', 'Romance'];
   readonly decades = ['2020s', '2010s', '2000s', '1990s', 'Classic'];
 
   // Filters
@@ -54,6 +53,16 @@ export class BrowseComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
   // Computed Properties
   // -------------------------------------------------------------------------
+
+  // Dynamic genre list extracted from actual movie data
+  readonly availableGenres = computed<string[]>(() => {
+    const allMovies = this.movieService.allMovies();
+    const searchResults = this.movieService.searchResults();
+    const combined = [...allMovies, ...searchResults];
+    const genreSet = new Set<string>();
+    combined.forEach(m => (m.genres || []).forEach(g => genreSet.add(g)));
+    return Array.from(genreSet).sort();
+  });
 
   // Convert API movies to display format
   readonly movies = computed<MovieDisplayItem[]>(() => {
@@ -193,7 +202,7 @@ export class BrowseComponent implements OnInit, OnDestroy {
       tmdbId: movie.tmdbId,
       title: movie.title,
       year: movie.releaseYear,
-      genre: [], // We don't have genres in summary, but can filter differently
+      genre: movie.genres || [],
       rating: Math.round(movie.voteAverage * 10) / 10 / 2, // Convert 10-scale to 5-scale
       description: movie.overview,
       poster: this.movieService.getPosterUrl(movie.posterPath)
