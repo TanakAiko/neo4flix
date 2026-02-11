@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, finalize, map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
@@ -160,7 +160,7 @@ export class RecommendationService {
         this._error.set('Failed to share recommendation');
         this.notificationService.error('Failed to send recommendation');
         console.error('Share recommendation error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );

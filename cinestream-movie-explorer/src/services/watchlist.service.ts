@@ -121,9 +121,7 @@ export class WatchlistService {
       return newIds;
     });
 
-    return this.http.delete<void>(`${this.apiUrl}/${tmdbId}/watchlist`, {
-      headers: { 'Content-Type': 'application/json' }
-    }).pipe(
+    return this.http.delete<void>(`${this.apiUrl}/${tmdbId}/watchlist`).pipe(
       tap(() => {
         this.notificationService.success('Removed from watchlist');
       }),

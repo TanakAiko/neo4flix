@@ -2,6 +2,7 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -63,6 +64,9 @@ export class LoginComponent {
       this.authService.login({ username, password }).subscribe({
         next: () => {
           this.router.navigate(['/home']);
+        },
+        error: () => {
+          // Error is already displayed via authService.error() signal
         }
       });
     }
@@ -71,18 +75,20 @@ export class LoginComponent {
   onRegister(): void {
     if (this.registerForm.valid) {
       const { username, email, firstname, lastname, password } = this.registerForm.value;
-      this.authService.register({ username, email, firstname, lastname, password }).subscribe({
+      this.authService.register({ username, email, firstname, lastname, password }).pipe(
+        // After successful registration, automatically log the user in
+        switchMap(() => this.authService.login({ username, password }))
+      ).subscribe({
         next: () => {
-          // After successful registration, log the user in
-          this.authService.login({ username, password }).subscribe({
-            next: () => {
-              this.router.navigate(['/home']);
-            },
-            error: () => {
-              // Switch to login mode so user can login manually
-              this.isLoginMode.set(true);
-            }
-          });
+          this.router.navigate(['/home']);
+        },
+        error: () => {
+          // If auto-login after register fails, switch to login mode
+          // so user can log in manually. The error message is already
+          // displayed via authService.error() signal.
+          if (!this.isLoginMode()) {
+            this.isLoginMode.set(true);
+          }
         }
       });
     }

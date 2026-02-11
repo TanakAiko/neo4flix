@@ -1,6 +1,6 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, finalize, map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
@@ -86,7 +86,7 @@ export class UserService {
       catchError((error) => {
         this._error.set('Failed to load user profile');
         console.error('Profile fetch error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );
@@ -169,7 +169,7 @@ export class UserService {
       catchError((error) => {
         this.notificationService.error('Failed to follow user');
         console.error('Follow error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );
@@ -188,7 +188,7 @@ export class UserService {
       catchError((error) => {
         this.notificationService.error('Failed to unfollow user');
         console.error('Unfollow error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );

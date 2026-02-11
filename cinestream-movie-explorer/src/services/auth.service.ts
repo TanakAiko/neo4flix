@@ -184,11 +184,10 @@ export class AuthService {
     this._error.set(null);
 
     return this.http.post(`${this.apiUrl}/register`, request, { responseType: 'text' }).pipe(
-      tap(() => {
-        // Registration successful, user should now login
-      }),
-      catchError((error) => this.handleError(error, 'Registration failed')),
-      finalize(() => this._isLoading.set(false))
+      catchError((error) => {
+        this._isLoading.set(false);
+        return this.handleError(error, 'Registration failed');
+      })
     );
   }
 

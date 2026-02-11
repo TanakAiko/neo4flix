@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, finalize, map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
@@ -137,7 +137,7 @@ export class RatingService {
         this._error.set('Failed to submit rating');
         this.notificationService.error('Failed to submit rating');
         console.error('Rate movie error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );
@@ -167,7 +167,7 @@ export class RatingService {
         this._error.set('Failed to delete rating');
         this.notificationService.error('Failed to remove rating');
         console.error('Delete rating error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );

@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
+import { Observable, of, forkJoin, throwError } from 'rxjs';
 import { tap, catchError, finalize } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
@@ -281,7 +281,7 @@ export class MovieService {
         this._error.set('Failed to fetch movie details');
         this.notificationService.error('Failed to load movie details');
         console.error('Movie details error:', error);
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );
@@ -319,7 +319,7 @@ export class MovieService {
       catchError((error) => {
         this._error.set('Failed to fetch movie');
         this.notificationService.error('Failed to load movie details');
-        throw error;
+        return throwError(() => error);
       }),
       finalize(() => this._isLoading.set(false))
     );
