@@ -4,7 +4,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, finalize, map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
-import { PublicProfile } from './auth.service';
+import { PublicProfile, AuthService } from './auth.service';
 
 // ============================================================================
 // INTERFACES - Based on Backend API Documentation
@@ -38,6 +38,7 @@ export class UserService {
   private readonly http = inject(HttpClient);
   private readonly notificationService = inject(NotificationService);
   private readonly apiUrl = `${API_BASE_URL}/api/users`;
+  private readonly authService = inject(AuthService);
 
   // -------------------------------------------------------------------------
   // State Management with Signals
@@ -165,6 +166,8 @@ export class UserService {
     return this.http.post<void>(`${this.apiUrl}/follow/${username}`, {}).pipe(
       tap(() => {
         this.notificationService.success(`You are now following ${username}`);
+        // Refresh current user's profile to update counts
+        this.authService.fetchUserProfile().subscribe();
       }),
       catchError((error) => {
         this.notificationService.error('Failed to follow user');
@@ -184,6 +187,8 @@ export class UserService {
     return this.http.delete<void>(`${this.apiUrl}/unfollow/${username}`).pipe(
       tap(() => {
         this.notificationService.success(`You unfollowed ${username}`);
+        // Refresh current user's profile to update counts
+        this.authService.fetchUserProfile().subscribe();
       }),
       catchError((error) => {
         this.notificationService.error('Failed to unfollow user');

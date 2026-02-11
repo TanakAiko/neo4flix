@@ -339,36 +339,14 @@ export class AuthService {
    * Follow a user
    */
   followUser(username: string): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/follow/${username}`, {}).pipe(
-      tap(() => {
-        // Update local user following count
-        const user = this._currentUser();
-        if (user) {
-          this._currentUser.set({
-            ...user,
-            followingCount: user.followingCount + 1
-          });
-        }
-      })
-    );
+    return this.http.post<void>(`${this.apiUrl}/follow/${username}`, {});
   }
 
   /**
    * Unfollow a user
    */
   unfollowUser(username: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/unfollow/${username}`).pipe(
-      tap(() => {
-        // Update local user following count
-        const user = this._currentUser();
-        if (user) {
-          this._currentUser.set({
-            ...user,
-            followingCount: Math.max(0, user.followingCount - 1)
-          });
-        }
-      })
-    );
+    return this.http.delete<void>(`${this.apiUrl}/unfollow/${username}`);
   }
 
   /**
