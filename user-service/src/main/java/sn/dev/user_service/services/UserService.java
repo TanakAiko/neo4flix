@@ -7,6 +7,8 @@ import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.TwoFactorSetupDTO;
+import sn.dev.user_service.web.dto.TwoFactorStatusDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
 
 public interface UserService {
@@ -33,4 +35,14 @@ public interface UserService {
     List<PublicProfileDTO> getFollowersList(String username);
 
     void adminDeleteUser(String username);
+
+    // --- Two-Factor Authentication ---
+
+    TwoFactorStatusDTO getTwoFactorStatus();
+
+    TwoFactorSetupDTO enableTwoFactor();
+
+    void verifyAndActivateTwoFactor(String totpCode);
+
+    void disableTwoFactor();
 }

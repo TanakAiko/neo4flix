@@ -45,6 +45,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/users/{username}/followers").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/{username}/following").permitAll()
                 
+                // --- USER SERVICE AUTHENTICATED ENDPOINTS ---
+                .requestMatchers("/api/users/2fa/**").authenticated()
+                
                 // --- MOVIE SERVICE PUBLIC ENDPOINTS ---
                 .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/tmdb/**").permitAll()

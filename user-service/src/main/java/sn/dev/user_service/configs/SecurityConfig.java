@@ -58,6 +58,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users/follow/{username}").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/unfollow/{username}").authenticated()
 
+                        // Two-Factor Authentication endpoints require authentication
+                        .requestMatchers("/api/users/2fa/**").authenticated()
+
                         // --- ADMIN ONLY ---
                         .requestMatchers(HttpMethod.DELETE, "/api/users/{username}").hasRole("ADMIN")
 

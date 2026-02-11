@@ -261,8 +261,9 @@ public record RegistrationDTO(
 #### LoginDTO (Request)
 ```java
 public record LoginDTO(
-    String username,
-    String password
+    @NotBlank String username,
+    @NotBlank String password,
+    String totp          // Optional: only required when user has 2FA enabled
 )
 ```
 
@@ -353,6 +354,44 @@ public record PublicProfileDTO(
 | Method | Endpoint | Auth | Role | Response | Description |
 |--------|----------|------|------|----------|-------------|
 | `DELETE` | `/{username}` | ✅ | `ADMIN` | `void` | Delete a user |
+
+#### Two-Factor Authentication Endpoints
+
+All 2FA endpoints require authentication (valid JWT).
+
+| Method | Endpoint | Auth | Request Body | Response | Description |
+|--------|----------|------|--------------|----------|-------------|
+| `GET` | `/2fa/status` | ✅ | - | `TwoFactorStatusDTO` | Check if 2FA is enabled |
+| `POST` | `/2fa/enable` | ✅ | - | `TwoFactorSetupDTO` | Initiate 2FA setup (returns secret + QR URI) |
+| `POST` | `/2fa/verify` | ✅ | `TwoFactorVerifyDTO` | `void` | Verify TOTP code to finalize 2FA activation |
+| `POST` | `/2fa/disable` | ✅ | - | `void` | Disable 2FA and remove OTP credentials |
+
+##### TwoFactorStatusDTO (Response)
+```java
+public record TwoFactorStatusDTO(boolean enabled)
+```
+
+##### TwoFactorSetupDTO (Response)
+```java
+public record TwoFactorSetupDTO(
+    String secret,       // Base32-encoded TOTP secret
+    String otpAuthUri    // otpauth:// URI for QR code generation
+)
+```
+
+##### TwoFactorVerifyDTO (Request)
+```java
+public record TwoFactorVerifyDTO(
+    @NotBlank @Size(min = 6, max = 6) String code  // 6-digit TOTP code
+)
+```
+
+##### 2FA Flow
+1. **Enable**: `POST /2fa/enable` → Returns `TwoFactorSetupDTO` with secret and QR URI
+2. **Scan**: User scans QR code with authenticator app (Google Authenticator, Authy, etc.)
+3. **Verify**: `POST /2fa/verify` with the 6-digit code → Activates 2FA
+4. **Login with 2FA**: `POST /login` with `username`, `password`, and `totp` fields
+5. **Disable**: `POST /2fa/disable` → Removes OTP credential from Keycloak
 
 ---
 

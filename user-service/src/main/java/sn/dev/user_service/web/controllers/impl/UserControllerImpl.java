@@ -15,6 +15,9 @@ import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.TwoFactorSetupDTO;
+import sn.dev.user_service.web.dto.TwoFactorStatusDTO;
+import sn.dev.user_service.web.dto.TwoFactorVerifyDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
 
 @RestController
@@ -86,6 +89,30 @@ public class UserControllerImpl implements UserController {
     @Override
     public ResponseEntity<Void> adminDeleteUser(String username) {
         userService.adminDeleteUser(username);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Two-Factor Authentication ---
+
+    @Override
+    public ResponseEntity<TwoFactorStatusDTO> getTwoFactorStatus() {
+        return ResponseEntity.ok(userService.getTwoFactorStatus());
+    }
+
+    @Override
+    public ResponseEntity<TwoFactorSetupDTO> enableTwoFactor() {
+        return ResponseEntity.ok(userService.enableTwoFactor());
+    }
+
+    @Override
+    public ResponseEntity<Void> verifyTwoFactor(TwoFactorVerifyDTO verifyDto) {
+        userService.verifyAndActivateTwoFactor(verifyDto.code());
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<Void> disableTwoFactor() {
+        userService.disableTwoFactor();
         return ResponseEntity.noContent().build();
     }
 }

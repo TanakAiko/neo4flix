@@ -18,6 +18,9 @@ import sn.dev.user_service.web.dto.PublicProfileDTO;
 import sn.dev.user_service.web.dto.RefreshTokenDTO;
 import sn.dev.user_service.web.dto.RegistrationDTO;
 import sn.dev.user_service.web.dto.TokenResponseDTO;
+import sn.dev.user_service.web.dto.TwoFactorSetupDTO;
+import sn.dev.user_service.web.dto.TwoFactorStatusDTO;
+import sn.dev.user_service.web.dto.TwoFactorVerifyDTO;
 import sn.dev.user_service.web.dto.UserProfileDTO;
 
 @RequestMapping("/api/users")
@@ -59,4 +62,18 @@ public interface UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{username}")
     ResponseEntity<Void> adminDeleteUser(@PathVariable String username);
+
+    // --- Two-Factor Authentication ---
+
+    @GetMapping("/2fa/status")
+    ResponseEntity<TwoFactorStatusDTO> getTwoFactorStatus();
+
+    @PostMapping("/2fa/enable")
+    ResponseEntity<TwoFactorSetupDTO> enableTwoFactor();
+
+    @PostMapping("/2fa/verify")
+    ResponseEntity<Void> verifyTwoFactor(@Valid @RequestBody TwoFactorVerifyDTO verifyDto);
+
+    @PostMapping("/2fa/disable")
+    ResponseEntity<Void> disableTwoFactor();
 }
