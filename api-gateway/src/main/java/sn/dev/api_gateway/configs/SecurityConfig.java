@@ -49,6 +49,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/tmdb/**").permitAll()
                 
+                // --- MOVIE SERVICE AUTHENTICATED ENDPOINTS ---
+                .requestMatchers(HttpMethod.POST, "/api/movies/*/watchlist").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/movies/*/watchlist").authenticated()
+                
                 // --- ADMIN ONLY ENDPOINTS ---
                 .requestMatchers(HttpMethod.DELETE, "/api/users/{username}").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/movies").hasRole("ADMIN")
