@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, finalize } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
@@ -45,6 +45,7 @@ export class WatchlistService {
 
   // Public readonly signals
   readonly watchlistMovies = this._watchlistMovies.asReadonly();
+  readonly watchlistIds = this._watchlistIds.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -102,7 +103,7 @@ export class WatchlistService {
         this._error.set('Failed to add to watchlist');
         this.notificationService.error('Failed to add to watchlist');
         console.error('Add to watchlist error:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }
@@ -120,7 +121,9 @@ export class WatchlistService {
       return newIds;
     });
 
-    return this.http.delete<void>(`${this.apiUrl}/${tmdbId}/watchlist`).pipe(
+    return this.http.delete<void>(`${this.apiUrl}/${tmdbId}/watchlist`, {
+      headers: { 'Content-Type': 'application/json' }
+    }).pipe(
       tap(() => {
         this.notificationService.success('Removed from watchlist');
       }),
@@ -131,7 +134,7 @@ export class WatchlistService {
         this._error.set('Failed to remove from watchlist');
         this.notificationService.error('Failed to remove from watchlist');
         console.error('Remove from watchlist error:', error);
-        throw error;
+        return throwError(() => error);
       })
     );
   }

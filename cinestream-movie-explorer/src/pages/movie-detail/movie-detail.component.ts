@@ -71,6 +71,13 @@ export class MovieDetailComponent implements OnInit {
     return this.ratingService.getCachedRating(tmdbId);
   });
 
+  // Whether the current movie is in the user's watchlist (signal-based for OnPush)
+  readonly inWatchlist = computed(() => {
+    const tmdbId = this.tmdbIdParam();
+    if (!tmdbId) return false;
+    return this.watchlistService.watchlistIds().has(tmdbId);
+  });
+
   // -------------------------------------------------------------------------
   // Lifecycle Hooks
   // -------------------------------------------------------------------------
@@ -91,8 +98,9 @@ export class MovieDetailComponent implements OnInit {
       if (username) {
         this.userService.getFollowing(username).subscribe();
       }
-      // Also load user's ratings
+      // Also load user's ratings and watchlist
       this.ratingService.fetchUserRatings().subscribe();
+      this.watchlistService.fetchWatchlist().subscribe();
     }
   }
 
@@ -184,11 +192,6 @@ export class MovieDetailComponent implements OnInit {
     navigator.clipboard.writeText(this.getCurrentUrl()).then(() => {
       // Could add a toast notification here
     });
-  }
-
-  isInWatchlist(): boolean {
-    const tmdbId = this.tmdbIdParam();
-    return tmdbId ? this.watchlistService.isInWatchlist(tmdbId) : false;
   }
 
   toggleWatchlist(): void {

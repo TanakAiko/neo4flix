@@ -2,7 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
-import { tap, catchError, map, finalize } from 'rxjs/operators';
+import { tap, catchError, map, finalize, switchMap } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 
 // ============================================================================
@@ -204,10 +204,17 @@ export class AuthService {
         this.storeTokens(response);
         this._isLoggedIn.set(true);
       }),
-      // Fetch user profile after successful login
-      tap(() => {
-        this.fetchUserProfile().subscribe();
-      }),
+      // Fetch user profile after successful login — wait for it to complete
+      // so the profile is cached in localStorage before navigation occurs
+      switchMap((tokenResponse) =>
+        this.fetchUserProfile().pipe(
+          // Profile fetch succeeded — return original token response
+          map(() => tokenResponse),
+          // Profile fetch failed — still allow login to succeed,
+          // but log the error. Profile will be retried on next app load.
+          catchError(() => of(tokenResponse))
+        )
+      ),
       catchError((error) => this.handleError(error, 'Login failed')),
       finalize(() => this._isLoading.set(false))
     );

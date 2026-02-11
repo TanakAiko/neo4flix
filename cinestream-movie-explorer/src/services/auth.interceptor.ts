@@ -15,11 +15,17 @@ const PUBLIC_ENDPOINTS = [
   '/api/users/search',
   '/api/movies/trending',
   '/api/movies/popular',
+  '/api/movies/random',
   '/api/movies/search',
 ] as const;
 
+/** Endpoints that always require authentication */
+const AUTHENTICATED_ENDPOINTS = [
+  '/api/users/me',
+  '/api/users/logout',
+] as const;
+
 const PUBLIC_PATTERNS = [
-  /^\/api\/users\/[^/]+$/, // /api/users/{username}
   /^\/api\/users\/[^/]+\/followers$/, // /api/users/{username}/followers
   /^\/api\/users\/[^/]+\/following$/, // /api/users/{username}/following
   /^\/api\/movies\/\d+$/, // /api/movies/{tmdbId}
@@ -42,10 +48,13 @@ const PUBLIC_PATTERNS = [
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
 
-  // Check if this is a public endpoint
+  // Determine if this is a public endpoint
   const isPublicEndpoint = isPublic(req.url);
 
-  // Clone request with auth header if we have a token and it's not a public endpoint
+  // Only attach token for non-public endpoints.
+  // Spring Security's gateway validates any JWT it receives — even on public
+  // endpoints. If an expired/invalid token is sent to a public endpoint, the
+  // gateway returns 401 instead of letting the request through unauthenticated.
   let authReq = req;
   const token = authService.getAccessToken();
 
@@ -101,6 +110,11 @@ function isPublic(url: string): boolean {
   // Extract path from URL
   const path = extractPath(url);
 
+  // Check authenticated endpoints first (these are NEVER public)
+  if (AUTHENTICATED_ENDPOINTS.some(endpoint => path.endsWith(endpoint))) {
+    return false;
+  }
+
   // Check exact matches
   if (PUBLIC_ENDPOINTS.some(endpoint => path.includes(endpoint))) {
     return true;
@@ -109,6 +123,17 @@ function isPublic(url: string): boolean {
   // Check pattern matches
   if (PUBLIC_PATTERNS.some(pattern => pattern.test(path))) {
     return true;
+  }
+
+  // /api/users/{username} is public (GET only for public profile)
+  // but exclude known sub-paths like /me, /follow, /unfollow, /logout
+  const userProfilePattern = /^\/api\/users\/[^/]+$/;
+  const reservedUserPaths = ['me', 'login', 'register', 'refresh', 'logout', 'search'];
+  if (userProfilePattern.test(path)) {
+    const segment = path.split('/').pop() || '';
+    if (!reservedUserPaths.includes(segment) && !segment.startsWith('follow') && !segment.startsWith('unfollow')) {
+      return true;
+    }
   }
 
   // All /api/movies/* GET requests are public (except watchlist)

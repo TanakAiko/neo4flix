@@ -157,9 +157,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.watchlistService.toggleWatchlist(movie.tmdbId).subscribe();
   }
 
-  /** Check if movie is in watchlist */
+  /** Check if movie is in watchlist (reads signal for OnPush reactivity) */
   isInWatchlist(tmdbId: number): boolean {
-    return this.watchlistService.isInWatchlist(tmdbId);
+    return this.watchlistService.watchlistIds().has(tmdbId);
   }
 
   scrollLeft(element: HTMLElement): void {
