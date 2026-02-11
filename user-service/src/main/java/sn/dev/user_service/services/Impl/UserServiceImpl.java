@@ -77,17 +77,20 @@ public class UserServiceImpl implements UserService {
         kcUser.setEnabled(true);
         kcUser.setEmailVerified(false);
 
-        CredentialRepresentation credential = new CredentialRepresentation();
-        credential.setType(CredentialRepresentation.PASSWORD);
-        credential.setValue(dto.password());
-        credential.setTemporary(false);
-        kcUser.setCredentials(List.of(credential));
-
         Response response = keycloak.realm("neo4flix").users().create(kcUser);
 
         if (response.getStatus() == 201) {
             String keycloakId = CreatedResponseUtil.getCreatedId(response);
             try {
+                // Set the password explicitly after user creation
+                // Setting credentials via setCredentials() during create() is unreliable
+                // in some Keycloak versions — using resetPassword() is the guaranteed approach.
+                CredentialRepresentation credential = new CredentialRepresentation();
+                credential.setType(CredentialRepresentation.PASSWORD);
+                credential.setValue(dto.password());
+                credential.setTemporary(false);
+                keycloak.realm("neo4flix").users().get(keycloakId).resetPassword(credential);
+
                 if (userRepository.existsByUsername(dto.username())) {
                     keycloak.realm("neo4flix").users().get(keycloakId).remove();
                     throw new ConflictException("Username is already taken.");
