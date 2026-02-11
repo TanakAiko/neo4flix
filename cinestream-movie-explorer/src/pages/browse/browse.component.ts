@@ -56,9 +56,10 @@ export class BrowseComponent implements OnInit, OnDestroy {
 
   // Dynamic genre list extracted from actual movie data
   readonly availableGenres = computed<string[]>(() => {
-    const allMovies = this.movieService.allMovies();
+    const random = this.movieService.randomMovies();
+    const popular = this.movieService.popularMovies();
     const searchResults = this.movieService.searchResults();
-    const combined = [...allMovies, ...searchResults];
+    const combined = [...random, ...popular, ...searchResults];
     const genreSet = new Set<string>();
     combined.forEach(m => (m.genres || []).forEach(g => genreSet.add(g)));
     return Array.from(genreSet).sort();
@@ -66,13 +67,25 @@ export class BrowseComponent implements OnInit, OnDestroy {
 
   // Convert API movies to display format
   readonly movies = computed<MovieDisplayItem[]>(() => {
-    const allMovies = this.movieService.allMovies();
     const searchResults = this.movieService.searchResults();
     
     // Use search results if we have an active search
-    const moviesToShow = this.searchQuery().trim() ? searchResults : allMovies;
-    
-    return moviesToShow.map(m => this.toDisplayItem(m));
+    if (this.searchQuery().trim()) {
+      return searchResults.map(m => this.toDisplayItem(m));
+    }
+
+    // Combine random + popular and deduplicate
+    const random = this.movieService.randomMovies();
+    const popular = this.movieService.popularMovies();
+    const seen = new Set<number>();
+    const combined: MovieSummary[] = [];
+    for (const m of [...random, ...popular]) {
+      if (!seen.has(m.tmdbId)) {
+        seen.add(m.tmdbId);
+        combined.push(m);
+      }
+    }
+    return combined.map(m => this.toDisplayItem(m));
   });
 
   readonly filteredMovies = computed<MovieDisplayItem[]>(() => {
@@ -120,8 +133,9 @@ export class BrowseComponent implements OnInit, OnDestroy {
   // Lifecycle Hooks
   // -------------------------------------------------------------------------
   ngOnInit(): void {
-    // Fetch initial movies
-    this.movieService.fetchAllMovies().subscribe();
+    // Fetch random and popular movies for the browse page
+    this.movieService.fetchRandomMovies(20).subscribe();
+    this.movieService.fetchPopularMovies().subscribe();
 
     // Set up search debounce
     this.searchSubscription = this.searchSubject.pipe(

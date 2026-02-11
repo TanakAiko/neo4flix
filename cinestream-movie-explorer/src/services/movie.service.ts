@@ -117,6 +117,9 @@ export class MovieService {
   
   /** Search results */
   private readonly _searchResults = signal<MovieSummary[]>([]);
+
+  /** Random movies */
+  private readonly _randomMovies = signal<MovieSummary[]>([]);
   
   /** Currently selected movie details */
   private readonly _selectedMovie = signal<MovieDetails | null>(null);
@@ -134,6 +137,7 @@ export class MovieService {
   readonly trendingMovies = this._trendingMovies.asReadonly();
   readonly popularMovies = this._popularMovies.asReadonly();
   readonly searchResults = this._searchResults.asReadonly();
+  readonly randomMovies = this._randomMovies.asReadonly();
   readonly selectedMovie = this._selectedMovie.asReadonly();
   readonly similarMovies = this._similarMovies.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
@@ -196,6 +200,21 @@ export class MovieService {
         return of([]);
       }),
       finalize(() => this._isLoading.set(false))
+    );
+  }
+
+  /**
+   * Fetch random movies from the backend
+   */
+  fetchRandomMovies(count: number = 10): Observable<MovieSummary[]> {
+    return this.http.get<MovieSummary[]>(`${this.apiUrl}/random`, {
+      params: { count: count.toString() }
+    }).pipe(
+      tap((movies) => this._randomMovies.set(movies)),
+      catchError((error) => {
+        console.error('Random movies error:', error);
+        return of([]);
+      })
     );
   }
 
@@ -422,6 +441,7 @@ export class MovieService {
     this._trendingMovies.set([]);
     this._popularMovies.set([]);
     this._searchResults.set([]);
+    this._randomMovies.set([]);
     this._selectedMovie.set(null);
     this._similarMovies.set([]);
     this._error.set(null);

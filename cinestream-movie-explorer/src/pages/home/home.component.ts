@@ -14,7 +14,7 @@ interface MovieDisplayItem {
   year: number;
   rating: number;
   description: string;
-  genre: string;
+  genres: string[];
   poster: string;
   backdrop: string;
 }
@@ -83,6 +83,11 @@ export class HomeComponent implements OnInit, OnDestroy {
       .map(m => this.toDisplayItem(m));
   });
 
+  /** Random movies for the Discover section */
+  readonly randomMovies = computed(() =>
+    this.movieService.randomMovies().map(m => this.toDisplayItem(m))
+  );
+
   // -------------------------------------------------------------------------
   // Lifecycle Hooks
   // -------------------------------------------------------------------------
@@ -98,6 +103,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         }
       }
     });
+
+    // Fetch random movies for Discover section
+    this.movieService.fetchRandomMovies(20).subscribe();
     
     // Fetch watchlist if user is logged in
     if (this.authService.isLoggedIn()) {
@@ -119,6 +127,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (trimmed) {
       this.router.navigate(['/browse'], { queryParams: { q: trimmed } });
     }
+  }
+
+  /** Fetch a new set of random movies */
+  refreshRandomMovies(): void {
+    this.movieService.fetchRandomMovies(20).subscribe();
   }
   
   /** Update Hero section on hover and pause auto-rotation */
@@ -191,7 +204,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       year: movie.releaseYear,
       rating: Math.round(movie.voteAverage * 10) / 10 / 2, // Convert 10-scale to 5-scale
       description: movie.overview,
-      genre: '', // Will be filled when we have genres in summary
+      genres: movie.genres || [],
       poster: this.movieService.getPosterUrl(movie.posterPath),
       backdrop: this.movieService.getBackdropUrl(movie.backdropPath),
     };
