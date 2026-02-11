@@ -10,3 +10,4 @@ export { MovieDetailComponent } from './movie-detail/movie-detail.component';
 export { RecommendationsComponent } from './recommendations/recommendations.component';
 export { WatchlistComponent } from './watchlist/watchlist.component';
 export { ProfileComponent } from './profile/profile.component';
+export { CommunityComponent } from './community/community.component';

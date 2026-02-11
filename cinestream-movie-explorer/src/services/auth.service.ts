@@ -45,6 +45,7 @@ export interface RegistrationRequest {
 export interface LoginRequest {
   username: string;
   password: string;
+  totp?: string; // Optional TOTP code for 2FA-enabled accounts
 }
 
 /**
@@ -56,6 +57,21 @@ export interface TokenResponse {
   expires_in: number;
   refresh_expires_in: number;
   token_type: string;
+}
+
+/**
+ * 2FA status response
+ */
+export interface TwoFactorStatus {
+  enabled: boolean;
+}
+
+/**
+ * 2FA setup response (returned when enabling 2FA)
+ */
+export interface TwoFactorSetup {
+  secret: string;
+  otpAuthUri: string;
 }
 
 /**
@@ -367,6 +383,40 @@ export class AuthService {
    */
   getFollowing(username: string): Observable<PublicProfile[]> {
     return this.http.get<PublicProfile[]>(`${this.apiUrl}/${username}/following`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Two-Factor Authentication (2FA) Methods
+  // -------------------------------------------------------------------------
+
+  /**
+   * Check if the current user has 2FA enabled
+   */
+  get2FAStatus(): Observable<TwoFactorStatus> {
+    return this.http.get<TwoFactorStatus>(`${this.apiUrl}/2fa/status`);
+  }
+
+  /**
+   * Initiate 2FA setup — returns secret key and otpAuthUri for QR code
+   * User must verify with a TOTP code after scanning to complete setup
+   */
+  enable2FA(): Observable<TwoFactorSetup> {
+    return this.http.post<TwoFactorSetup>(`${this.apiUrl}/2fa/enable`, {});
+  }
+
+  /**
+   * Verify a TOTP code to complete 2FA setup
+   * Must be called after enable2FA() with a code from the authenticator app
+   */
+  verify2FA(code: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/2fa/verify`, { code });
+  }
+
+  /**
+   * Disable 2FA for the current user
+   */
+  disable2FA(): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/2fa/disable`, {});
   }
 
   // -------------------------------------------------------------------------

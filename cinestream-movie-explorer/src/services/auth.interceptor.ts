@@ -23,6 +23,10 @@ const PUBLIC_ENDPOINTS = [
 const AUTHENTICATED_ENDPOINTS = [
   '/api/users/me',
   '/api/users/logout',
+  '/api/users/2fa/status',
+  '/api/users/2fa/enable',
+  '/api/users/2fa/verify',
+  '/api/users/2fa/disable',
 ] as const;
 
 const PUBLIC_PATTERNS = [

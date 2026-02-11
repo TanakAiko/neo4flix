@@ -10,6 +10,7 @@ import { MovieDetailComponent } from './src/pages/movie-detail/movie-detail.comp
 import { RecommendationsComponent } from './src/pages/recommendations/recommendations.component';
 import { WatchlistComponent } from './src/pages/watchlist/watchlist.component';
 import { ProfileComponent } from './src/pages/profile/profile.component';
+import { CommunityComponent } from './src/pages/community/community.component';
 import { authInterceptor } from './src/services/auth.interceptor';
 
 const routes: Routes = [
@@ -22,6 +23,7 @@ const routes: Routes = [
   { path: 'recommendations', component: RecommendationsComponent },
   { path: 'watchlist', component: WatchlistComponent },
   { path: 'profile', component: ProfileComponent },
+  { path: 'community', component: CommunityComponent },
 ];
 
 bootstrapApplication(AppComponent, {

@@ -8,10 +8,12 @@ export { AuthService } from './auth.service';
 export type { 
   User, 
   UserProfile, 
-  PublicProfile, 
+  PublicProfile,
   LoginRequest, 
   RegistrationRequest, 
-  TokenResponse 
+  TokenResponse,
+  TwoFactorStatus,
+  TwoFactorSetup
 } from './auth.service';
 
 // Movies
