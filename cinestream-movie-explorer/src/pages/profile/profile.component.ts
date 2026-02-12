@@ -130,7 +130,8 @@ export class ProfileComponent implements OnInit {
   }
 
   /**
-   * Verify the TOTP code to complete 2FA setup
+   * Verify the TOTP code to complete 2FA setup.
+   * On success, auto-logout so the user must re-login with 2FA.
    */
   verify2FASetup(): void {
     if (this.totpVerifyForm.invalid) return;
@@ -145,7 +146,13 @@ export class ProfileComponent implements OnInit {
         this.twoFactorSetup.set(null);
         this.twoFactorQrCode.set('');
         this.twoFactorLoading.set(false);
-        this.notificationService.success('Two-factor authentication enabled successfully!');
+        this.notificationService.success(
+          '2FA enabled! You will be logged out to verify your new setup.'
+        );
+        // Auto-logout after a short delay so the user can see the success message
+        setTimeout(() => {
+          this.authService.logout();
+        }, 2000);
       },
       error: () => {
         this.twoFactorLoading.set(false);

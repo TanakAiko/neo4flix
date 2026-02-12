@@ -1,11 +1,19 @@
 package sn.dev.user_service.services.Impl;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.codec.binary.Base32;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -38,6 +46,8 @@ import sn.dev.user_service.web.dto.UserProfileDTO;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserRepository userRepository;
     private final Keycloak keycloak;
@@ -152,11 +162,27 @@ public class UserServiceImpl implements UserService {
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError,
                             response -> response.bodyToMono(String.class).flatMap(body -> {
-                                // Keycloak returns "invalid_grant" with description when OTP is required
-                                if (body.contains("invalid_totp") || body.contains("requires action")) {
-                                    return Mono.error(new BadRequestException("2FA code is required or invalid"));
+                                log.warn("Keycloak token error [status={}]: {}",
+                                        response.statusCode().value(), body);
+                                String bodyLower = body.toLowerCase();
+                                // Keycloak returns "invalid_grant" with various descriptions when
+                                // OTP is required but missing, the code is wrong, or a required
+                                // action (CONFIGURE_TOTP) is pending.
+                                // Known Keycloak error_description values:
+                                //   "Account is not fully set up"  (CONFIGURE_TOTP required action)
+                                //   "Invalid user credentials"     (wrong TOTP code)
+                                //   "Invalid TOTP"                 (explicit TOTP rejection)
+                                if (bodyLower.contains("invalid_totp")
+                                        || bodyLower.contains("otp")
+                                        || bodyLower.contains("requires action")
+                                        || bodyLower.contains("configure_totp")
+                                        || bodyLower.contains("account_temporarily_disabled")
+                                        || bodyLower.contains("not fully set up")) {
+                                    return Mono.error(new BadRequestException(
+                                            "2FA code is required or invalid"));
                                 }
-                                return Mono.error(new BadRequestException("Invalid username or password"));
+                                return Mono.error(
+                                        new BadRequestException("Invalid username or password"));
                             }))
                     .bodyToMono(TokenResponseDTO.class)
                     .block();
@@ -359,6 +385,13 @@ public class UserServiceImpl implements UserService {
     // --- Two-Factor Authentication ---
 
     /**
+     * In-memory store for pending TOTP secrets during the enable → verify flow.
+     * Key: Keycloak user ID, Value: Base32-encoded TOTP secret.
+     * The secret is removed after successful verification or cancellation.
+     */
+    private static final Map<String, String> pendingTotpSecrets = new ConcurrentHashMap<>();
+
+    /**
      * Returns the current 2FA status for the authenticated user.
      * Checks if the user has an OTP credential configured in Keycloak.
      */
@@ -366,30 +399,37 @@ public class UserServiceImpl implements UserService {
     public TwoFactorStatusDTO getTwoFactorStatus() {
         String keycloakId = getAuthenticatedKeycloakId();
         boolean otpConfigured = isOtpConfigured(keycloakId);
+        // Also check if CONFIGURE_TOTP required action is set (2FA was verified
+        // via our flow but Keycloak hasn't created the OTP credential yet)
+        if (!otpConfigured) {
+            UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
+            List<String> requiredActions = user.getRequiredActions();
+            if (requiredActions != null && requiredActions.contains("CONFIGURE_TOTP")) {
+                otpConfigured = true;
+            }
+        }
         return new TwoFactorStatusDTO(otpConfigured);
     }
 
     /**
-     * Initiates 2FA setup by adding "Configure OTP" as a required action.
-     * Returns the TOTP secret and otpauth:// URI for the user to scan.
+     * Initiates 2FA setup: generates a TOTP secret, stores it in-memory,
+     * and returns the secret + otpauth URI for the user to scan.
+     * Does NOT activate 2FA yet — the user must verify with a valid code first.
      */
     @Override
     public TwoFactorSetupDTO enableTwoFactor() {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        // Check if OTP is already configured
-        if (isOtpConfigured(keycloakId)) {
+        if (isOtpConfigured(keycloakId) || hasConfigureTotpAction(keycloakId)) {
             throw new ConflictException("Two-factor authentication is already enabled");
         }
 
-        // Add "Configure OTP" required action so Keycloak expects a TOTP setup
-        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-        user.setRequiredActions(List.of("CONFIGURE_TOTP"));
-        keycloak.realm("neo4flix").users().get(keycloakId).update(user);
-
-        // Generate a TOTP secret for the user to scan
+        // Generate a TOTP secret and store it in-memory
         String secret = generateTotpSecret();
-        String username = user.getUsername();
+        pendingTotpSecrets.put(keycloakId, secret);
+
+        String username = keycloak.realm("neo4flix").users().get(keycloakId)
+                .toRepresentation().getUsername();
         String otpAuthUri = String.format(
                 "otpauth://totp/Neo4flix:%s?secret=%s&issuer=Neo4flix&digits=6&period=30&algorithm=HmacSHA1",
                 username, secret);
@@ -398,35 +438,42 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Verifies the TOTP code and finalizes the 2FA setup by creating
-     * the OTP credential in Keycloak and removing the required action.
+     * Verifies the TOTP code against the pending secret stored in-memory.
+     * If valid, adds the CONFIGURE_TOTP required action to the user in Keycloak
+     * so that Keycloak enforces OTP on the next login.
      */
     @Override
     public void verifyAndActivateTwoFactor(String totpCode) {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        if (isOtpConfigured(keycloakId)) {
+        if (isOtpConfigured(keycloakId) || hasConfigureTotpAction(keycloakId)) {
             throw new ConflictException("Two-factor authentication is already enabled");
         }
-
-        // Retrieve the user's pending required actions
-        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-        List<String> requiredActions = user.getRequiredActions();
-
-        if (requiredActions == null || !requiredActions.contains("CONFIGURE_TOTP")) {
-            throw new BadRequestException("2FA setup was not initiated. Call enable endpoint first.");
+        String secret = pendingTotpSecrets.get(keycloakId);
+        if (secret == null) {
+            throw new BadRequestException("2FA setup was not initiated. Call the enable endpoint first.");
         }
 
-        // Create the OTP credential via Keycloak Admin Client
-        CredentialRepresentation otpCredential = new CredentialRepresentation();
-        otpCredential.setType("otp");
-        otpCredential.setValue(totpCode);
-        otpCredential.setTemporary(false);
+        // Validate the TOTP code against the pending secret
+        if (!verifyTotpCode(secret, totpCode)) {
+            throw new BadRequestException("Invalid TOTP code. Please try again.");
+        }
 
-        // Use the Keycloak Admin API to set up the OTP credential.
-        // We remove the required action so the user can log in normally.
-        user.setRequiredActions(List.of());
+        // Code is valid — add CONFIGURE_TOTP required action so Keycloak
+        // will force the user to complete OTP setup on next login
+        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
+        List<String> requiredActions = user.getRequiredActions();
+        if (requiredActions == null) {
+            requiredActions = new java.util.ArrayList<>();
+        }
+        if (!requiredActions.contains("CONFIGURE_TOTP")) {
+            requiredActions.add("CONFIGURE_TOTP");
+        }
+        user.setRequiredActions(requiredActions);
         keycloak.realm("neo4flix").users().get(keycloakId).update(user);
+
+        // Clean up in-memory store
+        pendingTotpSecrets.remove(keycloakId);
     }
 
     /**
@@ -436,7 +483,7 @@ public class UserServiceImpl implements UserService {
     public void disableTwoFactor() {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        if (!isOtpConfigured(keycloakId)) {
+        if (!isOtpConfigured(keycloakId) && !hasConfigureTotpAction(keycloakId)) {
             throw new BadRequestException("Two-factor authentication is not enabled");
         }
 
@@ -453,9 +500,12 @@ public class UserServiceImpl implements UserService {
         // Also clear any lingering CONFIGURE_TOTP required action
         UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
         if (user.getRequiredActions() != null && user.getRequiredActions().contains("CONFIGURE_TOTP")) {
-            user.setRequiredActions(List.of());
+            user.getRequiredActions().remove("CONFIGURE_TOTP");
             keycloak.realm("neo4flix").users().get(keycloakId).update(user);
         }
+
+        // Clean up in-memory store in case it's lingering
+        pendingTotpSecrets.remove(keycloakId);
     }
 
     // --- Private Helpers ---
@@ -481,36 +531,78 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Generates a random Base32-encoded TOTP secret.
+     * Checks whether the user has a CONFIGURE_TOTP required action pending.
+     * This indicates 2FA was verified through our flow but Keycloak hasn't
+     * created the OTP credential yet.
      */
-    private String generateTotpSecret() {
-        java.security.SecureRandom random = new java.security.SecureRandom();
-        byte[] bytes = new byte[20]; // 160-bit secret as per RFC 4226
-        random.nextBytes(bytes);
-        return base32Encode(bytes);
+    private boolean hasConfigureTotpAction(String keycloakId) {
+        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
+        List<String> requiredActions = user.getRequiredActions();
+        return requiredActions != null && requiredActions.contains("CONFIGURE_TOTP");
     }
 
     /**
-     * Base32 encodes a byte array (RFC 4648).
+     * Generates a random Base32-encoded 20-byte TOTP secret (160-bit, per RFC 4226).
+     * Returns uppercase, no-padding Base32 — the standard format for authenticator apps.
      */
-    private String base32Encode(byte[] data) {
-        String base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        StringBuilder result = new StringBuilder();
-        int buffer = 0;
-        int bitsLeft = 0;
+    private String generateTotpSecret() {
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        byte[] bytes = new byte[20];
+        random.nextBytes(bytes);
+        Base32 base32 = new Base32(false); // false = no line separator
+        return base32.encodeAsString(bytes).replace("=", "").toUpperCase();
+    }
 
-        for (byte b : data) {
-            buffer = (buffer << 8) | (b & 0xFF);
-            bitsLeft += 8;
-            while (bitsLeft >= 5) {
-                result.append(base32Chars.charAt((buffer >> (bitsLeft - 5)) & 0x1F));
-                bitsLeft -= 5;
+    /**
+     * Validates a TOTP code against the given secret.
+     * Allows a ±1 time-step window (90 seconds total) to account for clock skew.
+     */
+    private boolean verifyTotpCode(String base32Secret, String code) {
+        if (code == null || code.length() != 6) {
+            return false;
+        }
+        try {
+            long timeIndex = System.currentTimeMillis() / 1000 / 30;
+            for (int i = -1; i <= 1; i++) {
+                String candidate = generateTotpForTime(base32Secret, timeIndex + i);
+                if (candidate.equals(code)) {
+                    return true;
+                }
             }
+        } catch (Exception e) {
+            return false;
         }
-        if (bitsLeft > 0) {
-            result.append(base32Chars.charAt((buffer << (5 - bitsLeft)) & 0x1F));
+        return false;
+    }
+
+    /**
+     * Generates a 6-digit TOTP code for the given Base32 secret and time index.
+     * Compatible with Google Authenticator (HmacSHA1, 6 digits, 30s period).
+     */
+    private String generateTotpForTime(String base32Secret, long timeIndex) throws Exception {
+        Base32 base32 = new Base32(false);
+        // Normalize: uppercase, no padding — matches what authenticator apps use
+        String normalized = base32Secret.toUpperCase().replace("=", "").trim();
+        byte[] key = base32.decode(normalized);
+
+        byte[] data = new byte[8];
+        long value = timeIndex;
+        for (int i = 7; i >= 0; i--) {
+            data[i] = (byte) (value & 0xFF);
+            value >>= 8;
         }
-        return result.toString();
+
+        Mac mac = Mac.getInstance("HmacSHA1");
+        mac.init(new SecretKeySpec(key, "HmacSHA1"));
+        byte[] hash = mac.doFinal(data);
+
+        int offset = hash[hash.length - 1] & 0xF;
+        int binary = ((hash[offset] & 0x7F) << 24)
+                | ((hash[offset + 1] & 0xFF) << 16)
+                | ((hash[offset + 2] & 0xFF) << 8)
+                | (hash[offset + 3] & 0xFF);
+        int otp = binary % 1_000_000;
+        return String.format("%06d", otp);
     }
 
 }
