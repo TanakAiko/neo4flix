@@ -2,7 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
-import { tap, catchError, map, finalize, switchMap } from 'rxjs/operators';
+import { tap, catchError, map, finalize, switchMap, filter, take } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 
 // ============================================================================
@@ -145,7 +145,8 @@ export class AuthService {
       : user.username;
   });
 
-  // Token refresh subject to prevent multiple simultaneous refresh attempts
+  // Token refresh subject to prevent multiple simultaneous refresh attempts.
+  // Empty string '' is used as a sentinel to signal refresh failure to waiting subscribers.
   private refreshTokenSubject = new BehaviorSubject<string | null>(null);
   private isRefreshing = false;
 
@@ -181,7 +182,17 @@ export class AuthService {
         }
       } else {
         // Token expired, try to refresh
-        this.refreshToken().subscribe({
+        // Temporarily restore user state while we attempt refresh
+        try {
+          const user = JSON.parse(storedUser) as User;
+          this._currentUser.set(user);
+          this._isLoggedIn.set(true);
+        } catch {
+          // ignore parse errors
+        }
+        this.refreshToken().pipe(
+          switchMap(() => this.fetchUserProfile())
+        ).subscribe({
           error: () => this.clearAuthState()
         });
       }
@@ -247,13 +258,16 @@ export class AuthService {
     }
 
     if (this.isRefreshing) {
-      // Wait for the ongoing refresh to complete
+      // Wait for the ongoing refresh to complete — skip the initial null
       return this.refreshTokenSubject.pipe(
-        map((token) => {
-          if (!token) {
-            throw new Error('Token refresh failed');
+        filter((token) => token !== null),
+        take(1),
+        switchMap((token) => {
+          if (token === '') {
+            // Empty string signals refresh failure
+            return throwError(() => new Error('Token refresh failed'));
           }
-          return { access_token: token } as TokenResponse;
+          return of({ access_token: token } as TokenResponse);
         })
       );
     }
@@ -269,7 +283,9 @@ export class AuthService {
       }),
       catchError((error) => {
         this.isRefreshing = false;
+        this.refreshTokenSubject.next(''); // Signal failure to waiting subscribers
         this.clearAuthState();
+        this.router.navigate(['/auth']);
         return throwError(() => error);
       })
     );
