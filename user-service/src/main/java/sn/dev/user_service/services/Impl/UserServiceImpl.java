@@ -10,6 +10,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.codec.binary.Base32;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.slf4j.Logger;
@@ -122,7 +123,13 @@ public class UserServiceImpl implements UserService {
                     throw new ConflictException("Email is already taken.");
                 }
 
-                User neo4jUser = new User(keycloakId, dto.username(), dto.email(), dto.firstname(), dto.lastname());
+                User neo4jUser = User.builder()
+                        .keycloakId(keycloakId)
+                        .username(dto.username())
+                        .email(dto.email())
+                        .firstname(dto.firstname())
+                        .lastname(dto.lastname())
+                        .build();
                 userRepository.save(neo4jUser);
             } catch (ConflictException e) {
                 throw e;
@@ -143,17 +150,26 @@ public class UserServiceImpl implements UserService {
         WebClient webClient = WebClient.create();
 
         try {
-            // Build the form data with required fields
+            // Check if 2FA is enabled for this user via Neo4j
+            userRepository.findByUsername(loginDto.username()).ifPresent(user -> {
+                String storedSecret = user.getTotpSecret();
+                if (storedSecret != null && !storedSecret.isBlank()) {
+                    // 2FA is enabled — TOTP code is required
+                    if (loginDto.totp() == null || loginDto.totp().isBlank()) {
+                        throw new BadRequestException("2FA code is required or invalid");
+                    }
+                    if (!verifyTotpCode(storedSecret, loginDto.totp())) {
+                        throw new BadRequestException("2FA code is required or invalid");
+                    }
+                }
+            });
+
+            // Build the form data
             var formData = BodyInserters.fromFormData("grant_type", "password")
                     .with("client_id", "neo4flix-user-service")
                     .with("client_secret", clientSecret)
                     .with("username", loginDto.username())
                     .with("password", loginDto.password());
-
-            // If user provides a TOTP code, include it for 2FA
-            if (loginDto.totp() != null && !loginDto.totp().isBlank()) {
-                formData = formData.with("totp", loginDto.totp());
-            }
 
             return webClient.post()
                     .uri(tokenUrl)
@@ -164,23 +180,6 @@ public class UserServiceImpl implements UserService {
                             response -> response.bodyToMono(String.class).flatMap(body -> {
                                 log.warn("Keycloak token error [status={}]: {}",
                                         response.statusCode().value(), body);
-                                String bodyLower = body.toLowerCase();
-                                // Keycloak returns "invalid_grant" with various descriptions when
-                                // OTP is required but missing, the code is wrong, or a required
-                                // action (CONFIGURE_TOTP) is pending.
-                                // Known Keycloak error_description values:
-                                //   "Account is not fully set up"  (CONFIGURE_TOTP required action)
-                                //   "Invalid user credentials"     (wrong TOTP code)
-                                //   "Invalid TOTP"                 (explicit TOTP rejection)
-                                if (bodyLower.contains("invalid_totp")
-                                        || bodyLower.contains("otp")
-                                        || bodyLower.contains("requires action")
-                                        || bodyLower.contains("configure_totp")
-                                        || bodyLower.contains("account_temporarily_disabled")
-                                        || bodyLower.contains("not fully set up")) {
-                                    return Mono.error(new BadRequestException(
-                                            "2FA code is required or invalid"));
-                                }
                                 return Mono.error(
                                         new BadRequestException("Invalid username or password"));
                             }))
@@ -393,21 +392,14 @@ public class UserServiceImpl implements UserService {
 
     /**
      * Returns the current 2FA status for the authenticated user.
-     * Checks if the user has an OTP credential configured in Keycloak.
+     * Checks the totpSecret field on the User node in Neo4j.
      */
     @Override
     public TwoFactorStatusDTO getTwoFactorStatus() {
         String keycloakId = getAuthenticatedKeycloakId();
-        boolean otpConfigured = isOtpConfigured(keycloakId);
-        // Also check if CONFIGURE_TOTP required action is set (2FA was verified
-        // via our flow but Keycloak hasn't created the OTP credential yet)
-        if (!otpConfigured) {
-            UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-            List<String> requiredActions = user.getRequiredActions();
-            if (requiredActions != null && requiredActions.contains("CONFIGURE_TOTP")) {
-                otpConfigured = true;
-            }
-        }
+        boolean otpConfigured = userRepository.findById(keycloakId)
+                .map(user -> user.getTotpSecret() != null && !user.getTotpSecret().isBlank())
+                .orElse(false);
         return new TwoFactorStatusDTO(otpConfigured);
     }
 
@@ -420,7 +412,10 @@ public class UserServiceImpl implements UserService {
     public TwoFactorSetupDTO enableTwoFactor() {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        if (isOtpConfigured(keycloakId) || hasConfigureTotpAction(keycloakId)) {
+        User neo4jUser = userRepository.findById(keycloakId)
+                .orElseThrow(() -> new NotFoundException("User profile not found"));
+
+        if (neo4jUser.getTotpSecret() != null && !neo4jUser.getTotpSecret().isBlank()) {
             throw new ConflictException("Two-factor authentication is already enabled");
         }
 
@@ -428,27 +423,30 @@ public class UserServiceImpl implements UserService {
         String secret = generateTotpSecret();
         pendingTotpSecrets.put(keycloakId, secret);
 
-        String username = keycloak.realm("neo4flix").users().get(keycloakId)
-                .toRepresentation().getUsername();
         String otpAuthUri = String.format(
                 "otpauth://totp/Neo4flix:%s?secret=%s&issuer=Neo4flix&digits=6&period=30&algorithm=HmacSHA1",
-                username, secret);
+                neo4jUser.getUsername(), secret);
 
         return new TwoFactorSetupDTO(secret, otpAuthUri);
     }
 
     /**
      * Verifies the TOTP code against the pending secret stored in-memory.
-     * If valid, adds the CONFIGURE_TOTP required action to the user in Keycloak
-     * so that Keycloak enforces OTP on the next login.
+     * If valid, persists the TOTP secret to the User node in Neo4j
+     * so that subsequent logins can be validated by our service.
      */
     @Override
+    @Transactional
     public void verifyAndActivateTwoFactor(String totpCode) {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        if (isOtpConfigured(keycloakId) || hasConfigureTotpAction(keycloakId)) {
+        User neo4jUser = userRepository.findById(keycloakId)
+                .orElseThrow(() -> new NotFoundException("User profile not found"));
+
+        if (neo4jUser.getTotpSecret() != null && !neo4jUser.getTotpSecret().isBlank()) {
             throw new ConflictException("Two-factor authentication is already enabled");
         }
+
         String secret = pendingTotpSecrets.get(keycloakId);
         if (secret == null) {
             throw new BadRequestException("2FA setup was not initiated. Call the enable endpoint first.");
@@ -459,50 +457,44 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Invalid TOTP code. Please try again.");
         }
 
-        // Code is valid — add CONFIGURE_TOTP required action so Keycloak
-        // will force the user to complete OTP setup on next login
-        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-        List<String> requiredActions = user.getRequiredActions();
-        if (requiredActions == null) {
-            requiredActions = new java.util.ArrayList<>();
+        // Persist the TOTP secret in Neo4j
+        neo4jUser.setTotpSecret(secret);
+        userRepository.save(neo4jUser);
+
+        // Remove CONFIGURE_TOTP required action in Keycloak if present so login isn't blocked
+        try {
+            UserResource userResource = keycloak.realm("neo4flix").users().get(keycloakId);
+            UserRepresentation kcUser = userResource.toRepresentation();
+            if (kcUser.getRequiredActions() != null && kcUser.getRequiredActions().contains("CONFIGURE_TOTP")) {
+                kcUser.getRequiredActions().remove("CONFIGURE_TOTP");
+                userResource.update(kcUser);
+            }
+        } catch (Exception e) {
+            log.warn("Could not clear CONFIGURE_TOTP required action in Keycloak", e);
         }
-        if (!requiredActions.contains("CONFIGURE_TOTP")) {
-            requiredActions.add("CONFIGURE_TOTP");
-        }
-        user.setRequiredActions(requiredActions);
-        keycloak.realm("neo4flix").users().get(keycloakId).update(user);
 
         // Clean up in-memory store
         pendingTotpSecrets.remove(keycloakId);
     }
 
     /**
-     * Disables 2FA by removing all OTP credentials from the user's Keycloak account.
+     * Disables 2FA by clearing the totpSecret field on the User node in Neo4j.
      */
     @Override
+    @Transactional
     public void disableTwoFactor() {
         String keycloakId = getAuthenticatedKeycloakId();
 
-        if (!isOtpConfigured(keycloakId) && !hasConfigureTotpAction(keycloakId)) {
+        User neo4jUser = userRepository.findById(keycloakId)
+                .orElseThrow(() -> new NotFoundException("User profile not found"));
+
+        if (neo4jUser.getTotpSecret() == null || neo4jUser.getTotpSecret().isBlank()) {
             throw new BadRequestException("Two-factor authentication is not enabled");
         }
 
-        // Remove all OTP credentials
-        List<CredentialRepresentation> credentials = keycloak.realm("neo4flix")
-                .users().get(keycloakId).credentials();
-
-        for (CredentialRepresentation cred : credentials) {
-            if ("otp".equals(cred.getType())) {
-                keycloak.realm("neo4flix").users().get(keycloakId).removeCredential(cred.getId());
-            }
-        }
-
-        // Also clear any lingering CONFIGURE_TOTP required action
-        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-        if (user.getRequiredActions() != null && user.getRequiredActions().contains("CONFIGURE_TOTP")) {
-            user.getRequiredActions().remove("CONFIGURE_TOTP");
-            keycloak.realm("neo4flix").users().get(keycloakId).update(user);
-        }
+        // Clear the TOTP secret in Neo4j
+        neo4jUser.setTotpSecret(null);
+        userRepository.save(neo4jUser);
 
         // Clean up in-memory store in case it's lingering
         pendingTotpSecrets.remove(keycloakId);
@@ -519,26 +511,6 @@ public class UserServiceImpl implements UserService {
             return jwt.getSubject();
         }
         throw new BadRequestException("Unauthenticated request - no valid JWT found");
-    }
-
-    /**
-     * Checks whether the user has an OTP credential configured in Keycloak.
-     */
-    private boolean isOtpConfigured(String keycloakId) {
-        List<CredentialRepresentation> credentials = keycloak.realm("neo4flix")
-                .users().get(keycloakId).credentials();
-        return credentials.stream().anyMatch(c -> "otp".equals(c.getType()));
-    }
-
-    /**
-     * Checks whether the user has a CONFIGURE_TOTP required action pending.
-     * This indicates 2FA was verified through our flow but Keycloak hasn't
-     * created the OTP credential yet.
-     */
-    private boolean hasConfigureTotpAction(String keycloakId) {
-        UserRepresentation user = keycloak.realm("neo4flix").users().get(keycloakId).toRepresentation();
-        List<String> requiredActions = user.getRequiredActions();
-        return requiredActions != null && requiredActions.contains("CONFIGURE_TOTP");
     }
 
     /**

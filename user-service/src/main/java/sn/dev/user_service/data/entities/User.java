@@ -30,4 +30,11 @@ public class User {
 
     @Property("lastname")
     private String lastname;
+
+    /**
+     * Base32-encoded TOTP secret for two-factor authentication.
+     * Null when 2FA is not enabled.
+     */
+    @Property("totpSecret")
+    private String totpSecret;
 }
