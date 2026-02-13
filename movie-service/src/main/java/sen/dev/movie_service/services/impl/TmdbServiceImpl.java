@@ -199,7 +199,8 @@ public class TmdbServiceImpl implements TmdbService {
                 .releaseDate(Utils.convertToLocalDate(tmdbMovie.release_date))
                 .posterPath(tmdbMovie.poster_path)
                 .backdropPath(tmdbMovie.backdrop_path)
-                .voteAverage(tmdbMovie.vote_average);
+                .voteAverage(tmdbMovie.vote_average)
+                .runtime(tmdbMovie.runtime);
 
         // --- Map Genres ---
         Set<GenreEntity> genreEntities = new HashSet<>();

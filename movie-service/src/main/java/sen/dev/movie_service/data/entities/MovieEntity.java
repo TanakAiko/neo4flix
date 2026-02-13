@@ -51,6 +51,9 @@ public class MovieEntity {
     @Property("voteAverage")
     private Double voteAverage;
 
+    @Property("runtime")
+    private Integer runtime;
+
     // --- RELATIONSHIPS ---
 
     // Genre Relationship
@@ -112,6 +115,7 @@ public class MovieEntity {
                 .posterPath(this.getPosterPath())
                 .backdropPath(this.getBackdropPath())
                 .voteAverage(this.getVoteAverage())
+                .runtime(this.getRuntime())
                 .genres(genreNames)
                 .directors(directorDTOs)
                 .cast(castDTOs)

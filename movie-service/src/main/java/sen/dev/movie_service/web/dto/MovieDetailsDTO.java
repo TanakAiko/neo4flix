@@ -20,6 +20,7 @@ public class MovieDetailsDTO {
     private String posterPath;
     private String backdropPath;
     private Double voteAverage;
+    private Integer runtime;
 
     private List<String> genres;
 
