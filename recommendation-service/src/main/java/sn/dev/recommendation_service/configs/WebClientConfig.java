@@ -8,8 +8,11 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
+    @Value("${movie-service.base-url:https://elanor-nonprofessed-venus.ngrok-free.dev}")
+    private String baseUrl;
+
     @Bean
-    public WebClient webClient(@Value("${movie-service.base-url:http://localhost:8082}") String baseUrl) {
+    public WebClient webClient() {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
