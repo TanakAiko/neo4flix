@@ -99,6 +99,17 @@ public class MovieServiceImpl implements MovieService {
                 throw new NotFoundException("Movie with tmdbId " + tmdbId + " not found");
             }
         }
+        
+        // Check for missing runtime or lazy-loaded data issues and update if necessary
+        if(existingMovie.isPresent() && (movieEntity.getRuntime() == null || movieEntity.getRuntime() == 0)) {
+             try {
+                 MovieEntity freshEntity = tmdbService.fetchAndMapMovieDetails(tmdbId);
+                 movieEntity.setRuntime(freshEntity.getRuntime());
+                 movieRepository.save(movieEntity);
+             } catch (Exception e) {
+                 // Log warning but don't fail, maybe just a partial update issue
+             }
+        }
 
         // 3. Convert Entity to DTO
         return movieEntity.mapToDetailsDTO();
