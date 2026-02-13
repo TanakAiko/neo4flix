@@ -51,4 +51,8 @@ public interface UserRepository extends Neo4jRepository<User, String> {
     // People who follow me
     @Query("MATCH (u:User {username: $username})<-[:FOLLOWS]-(follower:User) RETURN follower")
     List<User> findFollowers(String username);
+
+    // List all users (most recently created first, limited)
+    @Query("MATCH (u:User) RETURN u ORDER BY u.username LIMIT $limit")
+    List<User> findAllUsersLimited(int limit);
 }

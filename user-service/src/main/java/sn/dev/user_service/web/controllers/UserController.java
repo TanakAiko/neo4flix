@@ -47,6 +47,9 @@ public interface UserController {
     @GetMapping("/search")
     ResponseEntity<List<PublicProfileDTO>> search(@RequestParam("q") String query);
 
+    @GetMapping("/all")
+    ResponseEntity<List<PublicProfileDTO>> listAll(@RequestParam(defaultValue = "50") int limit);
+
     @PostMapping("/follow/{username}")
     ResponseEntity<Void> follow(@PathVariable String username);
 

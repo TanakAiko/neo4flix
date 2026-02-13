@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/{username}/followers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/{username}/following").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/all").permitAll()
 
                         // --- AUTHENTICATED ACCESS (JWT required) ---
                         // User's own profile

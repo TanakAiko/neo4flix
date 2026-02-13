@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users/refresh").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/all").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/{username}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/{username}/followers").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/{username}/following").permitAll()
@@ -92,7 +93,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("https://tanakaiko.github.io", "http://localhost:4200"));
+        configuration.setAllowedOrigins(List.of("https://tanakaiko.github.io", "http://localhost:4200", "http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

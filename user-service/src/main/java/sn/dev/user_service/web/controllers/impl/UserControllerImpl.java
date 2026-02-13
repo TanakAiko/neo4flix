@@ -65,6 +65,11 @@ public class UserControllerImpl implements UserController {
     }
 
     @Override
+    public ResponseEntity<List<PublicProfileDTO>> listAll(int limit) {
+        return ResponseEntity.ok(userService.listAllUsers(limit));
+    }
+
+    @Override
     public ResponseEntity<Void> follow(String username) {
         userService.follow(username);
         return ResponseEntity.noContent().build();

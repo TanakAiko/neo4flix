@@ -51,16 +51,23 @@ public class RecommendationServiceImpl implements RecommendationService {
                     .build());
         }
 
+        System.out.println("\n---> Phase 01");
+        System.out.println("CF Results Count: " + allRecommendations.size());
         // --- STRATEGY 2: FALLBACK TO MOVIE SERVICE ---
         // If Neo4j returns fewer than 10 results, or 0 (Cold Start)
         if (allRecommendations.size() < 10) {
-
+            System.out.println("\n---> Phase 02");
             // 1. Find a seed movie (The user's favorite)
             Map<String, Object> favorite = recommendationRepository.findFavoriteMovie(userId);
+
+            System.out.println("\n---> Phase 03");
+            System.out.println("Favorite Movie: " + favorite);
 
             if (favorite != null) {
                 Integer favoriteTmdbId = toInteger(favorite.get("tmdbId"));
 
+                System.out.println("\n---> Phase 04");
+                System.out.println("Favorite Movie TMDB ID: " + favoriteTmdbId);
                 // 2. Call Movie Service via WebClient
                 List<MovieSummaryDTO> similarFromMovieService = fetchSimilarFromMovieService(favoriteTmdbId);
 
@@ -80,21 +87,56 @@ public class RecommendationServiceImpl implements RecommendationService {
                 }
             }
         }
+
+        System.out.println("\n---> Phase 05");
+        System.out.println("CF Results Count: " + allRecommendations.size());
+
+        // --- STRATEGY 3: COLD START FALLBACK ---
+        // If both strategies returned nothing (new user with no ratings),
+        // fetch trending/popular movies from the Movie Service.
+        if (allRecommendations.isEmpty()) {
+            List<MovieSummaryDTO> trending = fetchTrendingFromMovieService();
+            for (MovieSummaryDTO dto : trending) {
+                allRecommendations.add(RecommendationDTO.builder()
+                        .tmdbId(dto.getTmdbId())
+                        .title(dto.getTitle())
+                        .overview(dto.getOverview())
+                        .voteAverage(dto.getVoteAverage())
+                        .posterPath(dto.getPosterPath())
+                        .releaseYear(dto.getReleaseYear())
+                        .reason("Trending now")
+                        .build());
+            }
+        }
+
         return allRecommendations;
 
     }
 
     private List<MovieSummaryDTO> fetchSimilarFromMovieService(Integer tmdbId) {
-        // Call the endpoint we created in Movie Service: GET
-        // /api/movies/{tmdbId}/similar
         return webClient.get()
                 .uri("/api/movies/{tmdbId}/similar", tmdbId)
                 .retrieve()
                 .bodyToFlux(MovieSummaryDTO.class)
                 .collectList()
+                .onErrorResume(e -> Mono.just(List.of()))
+                .block();
+    }
+
+    private List<MovieSummaryDTO> fetchTrendingFromMovieService() {
+        return webClient.get()
+                .uri("/api/movies/trending")
+                .retrieve()
+                .bodyToFlux(MovieSummaryDTO.class)
+                .collectList()
                 .onErrorResume(e -> {
-                    // If Movie Service is down, just return empty list so our app doesn't crash
-                    return Mono.just(List.of());
+                    // Fallback to popular if trending fails
+                    return webClient.get()
+                            .uri("/api/movies/popular")
+                            .retrieve()
+                            .bodyToFlux(MovieSummaryDTO.class)
+                            .collectList()
+                            .onErrorResume(e2 -> Mono.just(List.of()));
                 })
                 .block();
     }

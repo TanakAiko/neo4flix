@@ -299,6 +299,22 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<PublicProfileDTO> listAllUsers(int limit) {
+        return userRepository.findAllUsersLimited(limit).stream()
+                .map(user -> {
+                    Long followers = userRepository.countFollowers(user.getUsername());
+                    Long following = userRepository.countFollowing(user.getUsername());
+                    return new PublicProfileDTO(
+                            user.getUsername(),
+                            user.getFirstname(),
+                            user.getLastname(),
+                            followers,
+                            following);
+                })
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void follow(String targetUsername) {
         String myUsername = getAuthenticatedUsername();
