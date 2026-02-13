@@ -2,6 +2,7 @@ package sn.dev.rating_service.web.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import sn.dev.rating_service.web.dto.MovieReviewDTO;
 import sn.dev.rating_service.web.dto.RatingRequestDTO;
 import sn.dev.rating_service.web.dto.UserRatingDTO;
 
@@ -31,4 +32,8 @@ public interface RatingController {
     // Get average rating for a specific movie across all users
     @GetMapping("/movie/{tmdbId}/average")
     ResponseEntity<Double> getAverageRating(@PathVariable Integer tmdbId);
+
+    // Get all reviews/ratings for a specific movie from all users (public)
+    @GetMapping("/movie/{tmdbId}/reviews")
+    ResponseEntity<List<MovieReviewDTO>> getMovieReviews(@PathVariable Integer tmdbId);
 }

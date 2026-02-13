@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import sn.dev.rating_service.services.RatingService;
 import sn.dev.rating_service.web.controllers.RatingController;
+import sn.dev.rating_service.web.dto.MovieReviewDTO;
 import sn.dev.rating_service.web.dto.RatingRequestDTO;
 import sn.dev.rating_service.web.dto.UserRatingDTO;
 
@@ -51,5 +52,11 @@ public class RatingControllerImpl implements RatingController {
         }
         
         return ResponseEntity.ok(averageRating);
+    }
+
+    @Override
+    public ResponseEntity<List<MovieReviewDTO>> getMovieReviews(Integer tmdbId) {
+        List<MovieReviewDTO> reviews = ratingService.getMovieReviews(tmdbId);
+        return ResponseEntity.ok(reviews);
     }
 }

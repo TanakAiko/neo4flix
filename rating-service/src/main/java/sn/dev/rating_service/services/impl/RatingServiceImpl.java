@@ -12,6 +12,7 @@ import sn.dev.rating_service.exceptions.BadRequestException;
 import sn.dev.rating_service.services.RatingService;
 import sn.dev.rating_service.web.dto.RatingRequestDTO;
 import sn.dev.rating_service.web.dto.UserRatingDTO;
+import sn.dev.rating_service.web.dto.MovieReviewDTO;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -68,6 +69,25 @@ public class RatingServiceImpl implements RatingService {
     @Transactional(readOnly = true)
     public Double getAverageRating(Integer tmdbId) {
         return ratingRepository.findAverageRatingByTmdbId(tmdbId).orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MovieReviewDTO> getMovieReviews(Integer tmdbId) {
+        List<Map<String, Object>> results = ratingRepository.findAllRatingsForMovie(tmdbId);
+        return results.stream()
+                .map(this::mapToMovieReviewDTO)
+                .toList();
+    }
+
+    // Helper to convert raw Map to MovieReviewDTO
+    private MovieReviewDTO mapToMovieReviewDTO(Map<String, Object> map) {
+        return MovieReviewDTO.builder()
+                .username((String) map.get("username"))
+                .score(toInteger(map.get("score")))
+                .comment((String) map.get("comment"))
+                .ratedDate(convertOffsetToLocal(map.get("ratedDate")))
+                .build();
     }
 
     // Helper to convert raw Map from Neo4j to DTO

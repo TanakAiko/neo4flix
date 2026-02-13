@@ -104,6 +104,25 @@ public class RatingRepository {
     }
 
     /**
+     * Fetches all ratings/reviews for a specific movie from all users.
+     * Returns username, score, comment, and timestamp.
+     * Public query - no userId required.
+     */
+    public List<Map<String, Object>> findAllRatingsForMovie(Integer tmdbId) {
+        Collection<Map<String, Object>> results = neo4jClient.query(
+                "MATCH (u:User)-[r:RATED]->(m:Movie {tmdbId: $tmdbId}) " +
+                "RETURN u.username AS username, " +
+                "       r.score AS score, " +
+                "       r.comment AS comment, " +
+                "       r.timestamp AS ratedDate " +
+                "ORDER BY r.timestamp DESC")
+            .bind(tmdbId).to("tmdbId")
+            .fetch()
+            .all();
+        return List.copyOf(results);
+    }
+
+    /**
      * Calculates the average rating for a movie across all users.
      * This is a public query - no userId required.
      */

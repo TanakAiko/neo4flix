@@ -2,6 +2,7 @@ package sn.dev.rating_service.services;
 
 import sn.dev.rating_service.web.dto.RatingRequestDTO;
 import sn.dev.rating_service.web.dto.UserRatingDTO;
+import sn.dev.rating_service.web.dto.MovieReviewDTO;
 
 import java.util.List;
 
@@ -27,4 +28,10 @@ public interface RatingService {
     Integer getRating(Integer tmdbId);
 
     Double getAverageRating(Integer tmdbId);
+
+    /**
+     * Fetches all ratings/reviews for a movie from all users.
+     * Public endpoint - no authentication required.
+     */
+    List<MovieReviewDTO> getMovieReviews(Integer tmdbId);
 }

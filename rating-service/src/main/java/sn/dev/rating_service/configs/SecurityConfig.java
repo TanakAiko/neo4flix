@@ -37,8 +37,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
                         // --- PUBLIC ACCESS ---
-                        // Anyone can view the average rating of a movie
+                        // Anyone can view the average rating or reviews of a movie
                         .requestMatchers(HttpMethod.GET, "/api/ratings/movie/*/average").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/ratings/movie/*/reviews").permitAll()
 
                         // --- AUTHENTICATED ACCESS ---
                         // You must be logged in to rate, delete, or view your ratings.
